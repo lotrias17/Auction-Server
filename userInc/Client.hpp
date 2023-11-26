@@ -2,6 +2,7 @@
 #define CLIENT_HPP
 
 #include <string>
+#include <vector>
 
 using namespace std;
 

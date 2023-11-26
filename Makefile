@@ -15,13 +15,13 @@ ASOBJS 		= $(addprefix $(ASOBJ_PATH)/, $(addsuffix .o, $(basename $(ASSRCS))))
 ASINCLUDES	= asInc/
 
 CXX			= c++
-USERCXXFLAGS	= -Wall -Wextra -Werror -I$(USERINCLUDES) -g
-ASCXXFLAGS	= -Wall -Wextra -Werror -I$(ASINCLUDES) -g
+USERCXXFLAGS	= -Wall -Wextra -Werror #-I $(USERINCLUDES) -g
+ASCXXFLAGS	= -Wall -Wextra -Werror #-I $(ASINCLUDES) -g
 RM			= rm -f
 
-all: user as
+all: user1 as
 
-user: $(USERNAME)
+user1: $(USERNAME)
 
 $(USEROBJ_PATH)/%.o:%.cpp
 	@mkdir -p $(dir $@)

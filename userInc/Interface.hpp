@@ -1,8 +1,6 @@
 #ifndef INTERFACE_HPP
 #define INTERFACE_HPP
 
-#include <string>
-#include <vector>
 #include "Client.hpp"
 
 using namespace std;
