@@ -136,7 +136,7 @@ int Interface::login() {
     memcpy(_buffer + 10, " ", 1);
     memcpy(_buffer + 11, (char*)_words[2].c_str(), 8);
     memcpy(_buffer + 19, "\n", 1);
-    cout << "Eu enviei: " << _buffer;
+    // cout << "Eu enviei: " << _buffer; // serve para checkar o que se enviou
 
     int n=sendto(_fd, _buffer, 20, 0,_res->ai_addr,_res->ai_addrlen);
     if(n==-1) {
@@ -152,37 +152,84 @@ int Interface::login() {
     }
     _buffer[n] = '\0';
 
-    cout << "Eu recebi mas n checkei: " << _buffer;
+    // cout << "Eu recebi mas n checkei: " << _buffer; // serve para checkar o q se recebeu
 
-    return 0;
+    if (n != 8 && n != 7) {
+        cerr << "O servidor deu a resposta errada!\n";
+        return -1;
+    }
+
+    if (_buffer[0] != 'R' || _buffer[1] != 'L' || _buffer[2] != 'I') {
+        cerr << "Problema do lado do servidor!\n";
+        return -1;
+    }
+
+    string status = (_buffer + 4); // acho que isto ignora se for "ok\t" entao acho que teremos que fazer uma versao nossa
+    if (status == "OK\n" || status == "REG\n") {
+        cout << "Login feito ;)\n";
+        return 0;
+    } else {
+        if (status == "NOK\n") {
+            // password incorreta
+            return 1;
+        }
+    }
+
+    return -1;
 }
 
 int Interface::logout() {
     memcpy(_buffer, "LOU", 3);
     memcpy(_buffer + 3, " ", 1);
-    memcpy(_buffer + 4, (char*)_words[1].c_str(), 6);
+    memcpy(_buffer + 4, (char*)_client->_UID.c_str(), 6);
     memcpy(_buffer + 10, " ", 1);
-    memcpy(_buffer + 11, (char*)_words[2].c_str(), 8);
+    memcpy(_buffer + 11, (char*)_client->_password.c_str(), 8);
     memcpy(_buffer + 19, "\n", 1);
-    cout << "Eu enviei: " << _buffer;
+    // cout << "Eu enviei: " << _buffer; // serve para ter acerteza do qeu foi enviado
 
     int n=sendto(_fd, _buffer, 20, 0,_res->ai_addr,_res->ai_addrlen);
     if(n==-1) {
-        cerr << "Erro no sendto(), login()\n";
+        cerr << "Erro no sendto(), logout()\n";
         exit(1);
     }
 
     _addrlen=sizeof(_addr);
     n=recvfrom(_fd,_buffer,128,0,(struct sockaddr*)&_addr,&_addrlen);
     if(n==-1) {
-        cerr << "Erro no recvfrom(), login()\n";
+        cerr << "Erro no recvfrom(), logout()\n";
         exit(1);
     }
     _buffer[n] = '\0';
 
-    cout << "Eu recebi mas n checkei: " << _buffer;
+    // cout << "Eu recebi mas n checkei: " << _buffer; // server para checkar o input
 
-    return 0;
+    if (n != 8 && n != 7) {
+        cerr << "O servidor deu a resposta errada!\n";
+        return -1;
+    }
+
+    if (_buffer[0] != 'R' || _buffer[1] != 'L' || _buffer[2] != 'O') {
+        cerr << "Problema do lado do servidor!\n";
+        return -1;
+    }
+
+    string status = (_buffer + 4);
+    if (status == "OK\n") {
+        cout << "Logout feito ;)\n";
+        return 0;
+    } else {
+        if (status == "NOK\n" ) {
+            // user not logged in
+            return 1;
+        } else {
+            if (status == "UNR\n") {
+                // not registered
+                return 2;
+            }
+        }
+    }
+
+    return -1;
 }
 
 int Interface::exec() {
@@ -208,13 +255,23 @@ int Interface::exec() {
         else {
             if (checkUIDFormat(_words[1])) {
                 if (checkpasswordFormat(_words[2])) {
-                    // do the login
-                    _client = new Client(_words[1], _words[2]);
-                    cout << _client->toString();
+                    if (_client != NULL) {
+                        cout << "Ja esta logged in!\n";
+                        return 0;
+                    }
                     int n = login();
                     if (n == -1) {
                         std::cerr << "Deu merda no login!\n";
                         return -1;
+                    }
+                    if (n == 0) {
+                        _client = new Client(_words[1], _words[2]);
+                        // cout << _client->toString(); // diz como o cliente esta
+                        return 0;
+                    }
+                    if (n == 1) {
+                        cout << "Password ou utilizador incorreta!\n";
+                        return 0;
                     }
                     return 0;
                 } else {
@@ -237,14 +294,24 @@ int Interface::exec() {
                 std::cout << "ja esta logged out\n";
                 return 0;
             }
-            cout << "logging out!\n";
             int n = logout();
             if (n == -1) {
-                std::cerr << "Deu merda no login!\n";
+                std::cerr << "Deu merda no logout!\n";
                 return -1;
             }
-            delete _client;
-            _client = NULL;
+            if (n == 0) {
+                delete _client;
+                _client = NULL;
+                return 0;
+            }
+            if (n == 1) {
+                cout << "User not logged in on server!\n";
+                return 0;
+            }
+            if (n == 2) {
+                cout << "User n resgistrado\n";
+                return 0;
+            }
             return 0;
         }
     } else {

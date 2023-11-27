@@ -55,9 +55,13 @@ int main(int argc, char** argv) {
     }
     // fim do handle de argumentos
 
+    int n = 0;
+
     while(true) {
-        base.getInput();
+        n = base.getInput();
         // cout << base.toString() << "Acabamos!\n";
+        if (n == -1)
+            continue;
         if (base.exec() == -1)
             exit(-1);
     }
