@@ -15,6 +15,7 @@ int main(int argc, char** argv) {
     // handle de argumentos
     if (argc == 1) {
         base = Interface();
+        base.prepareSocket();
     }
     else {
         if (argc == 3) {
