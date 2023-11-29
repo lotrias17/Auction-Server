@@ -1,7 +1,7 @@
 #ifndef INTERFACE_HPP
 #define INTERFACE_HPP
 
-#include <string>
+//#include <string>
 #include <unistd.h>
 #include <vector>
 #include <sys/socket.h>
