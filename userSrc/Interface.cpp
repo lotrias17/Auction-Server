@@ -23,7 +23,6 @@ void Interface::prepareSocket() {
 }
 
 Interface::Interface() {
-    // this value should be the group number but it is 11 for the tejo testing
     _port = 58011;
     strcpy(_server, "localhost");
     _client = NULL;
@@ -31,13 +30,14 @@ Interface::Interface() {
 
 Interface::Interface(int port) {
     _port = port;
-    strcpy(_server, "localhost");
+    strcpy(_server, "locahost");
     _client = NULL;
     prepareSocket();
 }
 
+
 Interface::Interface(char* server) {
-    _port = 58011;
+    _port = 58011;  // this value should be the group number but it is 11 for the tejo testing
     strcpy(_server, server);
     _client = NULL;
     prepareSocket();
@@ -56,6 +56,7 @@ int Interface::processInput() {
     int iword = 0;
     _nWords = 0;
     char word[50];
+    
     for (int i = 0; i < j; i++) {
         if (_input[i] == ' ') {
             word[iword] = '\0';
@@ -121,12 +122,32 @@ bool Interface::checkpasswordFormat(string str) {
     return str.size() == 8 && isAlphaNumeric(str);
 }
 
+int Interface::get() {
+    cout << "YES: " << _port << ", " << _server << '\n';
+    return 0;
+}
+
 string Interface::toString() {
     string output = "Pelo PORT: " + to_string(_port) + "\nPelo servidor: " + _server + "\nO ultimo input foi: " + _input + "\n";
     for (int i = 1; i <= _nWords; i++) {
         output = output + "Palavra numero " + to_string(i) + " é: " + _words[i - 1] + "\n";
     }
     return output;
+}
+
+bool checkServerAnswer(int bufSize, char* buf, string corr) {
+
+    char code[3];
+    for (int i = 0; i < 3; i++) {
+        code[i] = buf[i];
+    }
+
+    if ((bufSize != 8 && bufSize != 7) || (code[0] != corr[0] || code[1] != corr[1] || code[2] != corr[2])) {
+        cerr << "O servidor deu a resposta errada!\n";
+        return true;
+    }
+
+    return false;
 }
 
 int Interface::login() {
@@ -136,7 +157,7 @@ int Interface::login() {
     memcpy(_buffer + 10, " ", 1);
     memcpy(_buffer + 11, (char*)_words[2].c_str(), 8);
     memcpy(_buffer + 19, "\n", 1);
-    // cout << "Eu enviei: " << _buffer; // serve para checkar o que se enviou
+    cout << "Eu enviei: " << _buffer; // serve para checkar o que se enviou
 
     int n=sendto(_fd, _buffer, 20, 0,_res->ai_addr,_res->ai_addrlen);
     if(n==-1) {
@@ -146,6 +167,7 @@ int Interface::login() {
 
     _addrlen=sizeof(_addr);
     n=recvfrom(_fd,_buffer,128,0,(struct sockaddr*)&_addr,&_addrlen);
+    
     if(n==-1) {
         cerr << "Erro no recvfrom(), login()\n";
         exit(1);
@@ -154,13 +176,7 @@ int Interface::login() {
 
     // cout << "Eu recebi mas n checkei: " << _buffer; // serve para checkar o q se recebeu
 
-    if (n != 8 && n != 7) {
-        cerr << "O servidor deu a resposta errada!\n";
-        return -1;
-    }
-
-    if (_buffer[0] != 'R' || _buffer[1] != 'L' || _buffer[2] != 'I') {
-        cerr << "Problema do lado do servidor!\n";
+    if (checkServerAnswer(n, _buffer, "RLI")) {
         return -1;
     }
 
@@ -185,7 +201,7 @@ int Interface::logout() {
     memcpy(_buffer + 10, " ", 1);
     memcpy(_buffer + 11, (char*)_client->_password.c_str(), 8);
     memcpy(_buffer + 19, "\n", 1);
-    // cout << "Eu enviei: " << _buffer; // serve para ter acerteza do qeu foi enviado
+    // cout << "Eu enviei: " << _buffer; // serve para ter acerteza do que foi enviado
 
     int n=sendto(_fd, _buffer, 20, 0,_res->ai_addr,_res->ai_addrlen);
     if(n==-1) {
@@ -203,30 +219,115 @@ int Interface::logout() {
 
     // cout << "Eu recebi mas n checkei: " << _buffer; // server para checkar o input
 
-    if (n != 8 && n != 7) {
-        cerr << "O servidor deu a resposta errada!\n";
-        return -1;
-    }
-
-    if (_buffer[0] != 'R' || _buffer[1] != 'L' || _buffer[2] != 'O') {
-        cerr << "Problema do lado do servidor!\n";
+    if (checkServerAnswer(n, _buffer, "RLO")) {
         return -1;
     }
 
     string status = (_buffer + 4);
     if (status == "OK\n") {
         cout << "Logout feito ;)\n";
+        delete _client;
+        _client = NULL;
         return 0;
     } else {
         if (status == "NOK\n" ) {
             // user not logged in
+            cout << "User not logged in on server!\n";
             return 1;
         } else {
             if (status == "UNR\n") {
                 // not registered
+                cout << "User n resgistrado\n";
                 return 2;
             }
         }
+    }
+    return -1;
+}
+
+int Interface::unregister() {
+    memcpy(_buffer, "UNR", 3);
+    memcpy(_buffer + 3, " ", 1);
+    memcpy(_buffer + 4, (char*)_client->_UID.c_str(), 6);
+    memcpy(_buffer + 10, " ", 1);
+    memcpy(_buffer + 11, (char*)_client->_password.c_str(), 8);
+    memcpy(_buffer + 19, "\n", 1);
+    // cout << "Eu enviei: " << _buffer; // serve para ter acerteza do que foi enviado
+
+    int n=sendto(_fd, _buffer, 20, 0,_res->ai_addr,_res->ai_addrlen);
+    if(n==-1) {
+        cerr << "Erro no sendto(), unregister()\n";
+        exit(1);
+    }
+
+    _addrlen=sizeof(_addr);
+    n=recvfrom(_fd,_buffer,128,0,(struct sockaddr*)&_addr,&_addrlen);
+    
+    if(n==-1) {
+        cerr << "Erro no recvfrom(), unregister()\n";
+        exit(1);
+    }
+    _buffer[n] = '\0';
+
+    // cout << "Eu recebi mas n checkei: " << _buffer; // serve para checkar o q se recebeu
+
+    if (checkServerAnswer(n, _buffer, "RUR")) {
+        return -1;
+    }
+
+    string status = (_buffer + 4); // acho que isto ignora se for "ok\t" entao acho que teremos que fazer uma versao nossa
+    if (status == "OK\n") {
+        cout << "Unregistered e logout feito ;)\n";
+        delete _client;
+        _client = NULL;
+        return 0;
+    } else if (status == "UNR\n") {
+            cout << "utilizador não registado ;)\n";
+            return 1;
+    } else {
+        cout << "sem utilizador logged in.\n";
+        return 2;
+    }
+
+    return -1;
+}
+
+int Interface::list() {
+    memcpy(_buffer, "LST", 3);
+    memcpy(_buffer + 3, "\n", 1);
+    cout << "Eu enviei: " << _buffer; // serve para checkar o que se enviou
+
+    int n=sendto(_fd, _buffer, 5, 0,_res->ai_addr,_res->ai_addrlen);
+    if(n==-1) {
+        cerr << "Erro no sendto(), list()\n";
+        exit(1);
+    }
+
+    _addrlen=sizeof(_addr);
+    n=recvfrom(_fd,_buffer,128,0,(struct sockaddr*)&_addr,&_addrlen);
+
+    if(n==-1) {
+        cerr << "Erro no recvfrom(), list()\n";
+        exit(1);
+    }
+    _buffer[n] = '\0';
+
+    cout << "Eu recebi: " << _buffer;
+    // cout << "Eu recebi mas n checkei: " << _buffer; // serve para checkar o q se recebeu
+
+    if (checkServerAnswer(n, _buffer, "RLS")) {
+        return -1;
+    }
+
+    string status = (_buffer + 4); // acho que isto ignora se for "ok\t" entao acho que teremos que fazer uma versao nossa
+    if (status == "OK\n") {
+        cout << "Buffer recebido do AS.\n";
+        cout << _buffer;
+        return 0;
+    }
+    else {
+        cout << "Nenhuma auction iniciada.\n";
+        return 1;
     }
 
     return -1;
@@ -246,8 +347,7 @@ int Interface::exec() {
             cout << "De resto um bom dia!\n";
             return -1;
         }
-    } else {
-    if (_words[0] == "login") {
+    } else if (_words[0] == "login") {
         if (_nWords != 3) {
             cout << "Comando mal inserido: login UID(6 digits) password(8 alphanumeric)\n";
             return 0;
@@ -284,8 +384,7 @@ int Interface::exec() {
             }
             return 0;
         }
-    } else {
-    if (_words[0] == "logout") {
+    } else if (_words[0] == "logout") {
         if (_nWords != 1) {
             cout << "Comando mal inserido: logout\n";
             return 0;
@@ -299,27 +398,50 @@ int Interface::exec() {
                 std::cerr << "Deu merda no logout!\n";
                 return -1;
             }
-            if (n == 0) {
-                delete _client;
-                _client = NULL;
+            return 0;
+        }
+    } else if (_words[0] == "unregister") {
+        if (_nWords != 1) {
+            cout << "Comando mal inserido: logout\n";
+            return 0;
+        } else {
+            if (_client == NULL) {
+                std::cout << "ja esta logged out\n";
                 return 0;
             }
-            if (n == 1) {
+            int n = unregister();
+            if (n == -1) {
+                std::cerr << "Deu merda no unregister!\n";
+                return -1;
+            }
+            /*if (n == 1) {
                 cout << "User not logged in on server!\n";
                 return 0;
             }
             if (n == 2) {
                 cout << "User n resgistrado\n";
                 return 0;
+            }*/
+            return 0;
+        }
+    } else if (_words[0] == "list" || _words[0] == "l") {
+        if (_nWords != 1) {
+            cout << "Comando mal inserido: list\n";
+            return 0;
+        } else {
+            int n = list();
+            if (n == -1) {
+                std::cerr << "Deu merda no list!\n";
+                return -1;
             }
             return 0;
         }
-    } else {
+    }
+    else {
         cout << "comando invalido!\n";
         return 0;
     }
-    }
-    }
+
     return 0;
 }
 
