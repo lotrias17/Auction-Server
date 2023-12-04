@@ -30,7 +30,7 @@ Interface::Interface() {
 
 Interface::Interface(int port) {
     _port = port;
-    strcpy(_server, "locahost");
+    strcpy(_server, "localhost");
     _client = NULL;
     prepareSocket();
 }
@@ -104,7 +104,7 @@ bool Interface::isNumeric(string str) {
 }
 
 bool Interface::isAlphaNumeric(string str) {
-    int size = (int) str.size();
+    int size = (int) str.size();    
     for (int i = 0; i < size; i++) {
         if (!isalnum(str[i])) {
             return false;
@@ -135,14 +135,17 @@ string Interface::toString() {
 }
 
 bool checkServerAnswer(int bufSize, char* buf, string corr) {
-    // talvez adicionar um 4º char para o   ' '.
-    char code[3];
-    for (int i = 0; i < 3; i++) {
+    if (bufSize < 4) {
+        cout << "O servidor deu a resposta errada!\n";
+        return true;
+    }
+    char code[4];
+    for (int i = 0; i < 4; i++) {
         code[i] = buf[i];
     }
 
-    if ((bufSize != 8 && bufSize != 7) || (code[0] != corr[0] || code[1] != corr[1] || code[2] != corr[2])) {
-        cerr << "O servidor deu a resposta errada!\n";
+    if ((code[0] != corr[0] || code[1] != corr[1] || code[2] != corr[2] || code[3] != ' ')) {
+        cout << "O servidor deu a resposta errada!\n";
         return true;
     }
 
@@ -151,7 +154,7 @@ bool checkServerAnswer(int bufSize, char* buf, string corr) {
 
 int Interface::udpBufferProtocol(int sendSize, int rcvSize) {
 
-    int n=sendto(_fd, _buffer, sendSize, 0,_res->ai_addr,_res->ai_addrlen);
+    int n = sendto(_fd, _buffer, sendSize, 0,_res->ai_addr,_res->ai_addrlen);
     if(n==-1) {
         cerr << "Erro no sendto(), login()\n";
         exit(1);
@@ -175,15 +178,19 @@ int Interface::login() {
     memcpy(_buffer + 10, " ", 1);
     memcpy(_buffer + 11, (char*)_words[2].c_str(), 8);
     memcpy(_buffer + 19, "\n", 1);
+    _buffer[20] = '\0';
     cout << "Eu enviei: " << _buffer; // serve para checkar o que se enviou
 
     int n = udpBufferProtocol(20, 128);
 
-    // cout << "Eu recebi mas n checkei: " << _buffer; // serve para checkar o q se recebeu
+    cout << "Eu recebi mas n checkei: " << _buffer; // serve para checkar o q se recebeu
 
     if (checkServerAnswer(n, _buffer, "RLI")) {
         return -1;
     }
+
+    if (n != 7 && n != 8)
+        return -1;
 
     string status = (_buffer + 4); // acho que isto ignora se for "ok\t" entao acho que teremos que fazer uma versao nossa
     if (status == "OK\n" || status == "REG\n") {
@@ -206,15 +213,19 @@ int Interface::logout() {
     memcpy(_buffer + 10, " ", 1);
     memcpy(_buffer + 11, (char*)_client->_password.c_str(), 8);
     memcpy(_buffer + 19, "\n", 1);
-    // cout << "Eu enviei: " << _buffer; // serve para ter acerteza do que foi enviado
+    _buffer[20] = '\0';
+    cout << "Eu enviei: " << _buffer; // serve para ter acerteza do que foi enviado
 
     int n = udpBufferProtocol(20, 128);
 
-    // cout << "Eu recebi mas n checkei: " << _buffer; // server para checkar o input
+    cout << "Eu recebi mas n checkei: " << _buffer; // server para checkar o input
 
     if (checkServerAnswer(n, _buffer, "RLO")) {
         return -1;
     }
+
+    if (n != 7 && n != 8)
+        return -1;
 
     string status = (_buffer + 4);
     if (status == "OK\n") {
@@ -245,6 +256,7 @@ int Interface::unregister() {
     memcpy(_buffer + 10, " ", 1);
     memcpy(_buffer + 11, (char*)_client->_password.c_str(), 8);
     memcpy(_buffer + 19, "\n", 1);
+    _buffer[20] = '\0';
     // cout << "Eu enviei: " << _buffer; // serve para ter acerteza do que foi enviado
 
     int n = udpBufferProtocol(20, 128);
@@ -254,6 +266,9 @@ int Interface::unregister() {
     if (checkServerAnswer(n, _buffer, "RUR")) {
         return -1;
     }
+
+    if (n != 7 && n != 8)
+        return -1;
 
     string status = (_buffer + 4); // acho que isto ignora se for "ok\t" entao acho que teremos que fazer uma versao nossa
     if (status == "OK\n") {
@@ -275,21 +290,36 @@ int Interface::unregister() {
 int Interface::list() {
     memcpy(_buffer, "LST", 3);
     memcpy(_buffer + 3, "\n", 1);
-    cout << "Eu enviei: " << _buffer; // serve para checkar o que se enviou
+    _buffer[4] = '\0';
+    // cout << "Eu enviei: " << _buffer; // serve para checkar o que se enviou
 
-    int n = udpBufferProtocol(5, 200);
+    int n = udpBufferProtocol(4, 8 * 1024);
 
-    cout << "Eu recebi: " << _buffer;
+    // cout << "Eu recebi: " << _buffer;
     // cout << "Eu recebi mas n checkei: " << _buffer; // serve para checkar o q se recebeu
 
     if (checkServerAnswer(n, _buffer, "RLS")) {
         return -1;
     }
 
-    string status = (_buffer + 4); // acho que isto ignora se for "ok\t" entao acho que teremos que fazer uma versao nossa
-    if (status == "OK\n") {
+    if (_buffer[4] == 'O' && _buffer[5] == 'K' && _buffer[6] == ' ') {
         cout << "Buffer recebido do AS.\n";
-        cout << _buffer;
+        cout << (_buffer + 7); // checkar o output!
+        for (int i = 7; i < n; i += 6) {
+            char number[4];
+            number[0] = _buffer[i];
+            number[1] = _buffer[i + 1];
+            number[2] = _buffer[i + 2];
+            number[3] = '\0';
+            string str = number;
+            if (_buffer[i + 4] == '0') {
+                cout << "The Auction Number: " + str + " is not active!\n";
+            } else if (_buffer[i + 4] == '1'){
+                cout << "The Auction Number: " + str + " is active!\n";
+            } else {
+                cout << "Problem with auction state Number: " + str + "\n";
+            }
+        }
         return 0;
     }
     else {
