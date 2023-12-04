@@ -35,7 +35,6 @@ Interface::Interface(int port) {
     prepareSocket();
 }
 
-
 Interface::Interface(char* server) {
     _port = 58011;  // this value should be the group number but it is 11 for the tejo testing
     strcpy(_server, server);
@@ -122,7 +121,7 @@ bool Interface::checkpasswordFormat(string str) {
     return str.size() == 8 && isAlphaNumeric(str);
 }
 
-int Interface::get() {
+int Interface::get() {  //logo pode-se apagar acho eu
     cout << "YES: " << _port << ", " << _server << '\n';
     return 0;
 }
@@ -136,7 +135,7 @@ string Interface::toString() {
 }
 
 bool checkServerAnswer(int bufSize, char* buf, string corr) {
-
+    // talvez adicionar um 4º char para o   ' '.
     char code[3];
     for (int i = 0; i < 3; i++) {
         code[i] = buf[i];
@@ -150,6 +149,25 @@ bool checkServerAnswer(int bufSize, char* buf, string corr) {
     return false;
 }
 
+int Interface::udpBufferProtocol(int sendSize, int rcvSize) {
+
+    int n=sendto(_fd, _buffer, sendSize, 0,_res->ai_addr,_res->ai_addrlen);
+    if(n==-1) {
+        cerr << "Erro no sendto(), login()\n";
+        exit(1);
+    }
+
+    _addrlen=sizeof(_addr);
+    n=recvfrom(_fd,_buffer,rcvSize,0,(struct sockaddr*)&_addr,&_addrlen);
+    
+    if(n==-1) {
+        cerr << "Erro no recvfrom(), login()\n";
+        exit(1);
+    }
+    _buffer[n] = '\0';
+    return n;
+}
+
 int Interface::login() {
     memcpy(_buffer, "LIN", 3);
     memcpy(_buffer + 3, " ", 1);
@@ -159,20 +177,7 @@ int Interface::login() {
     memcpy(_buffer + 19, "\n", 1);
     cout << "Eu enviei: " << _buffer; // serve para checkar o que se enviou
 
-    int n=sendto(_fd, _buffer, 20, 0,_res->ai_addr,_res->ai_addrlen);
-    if(n==-1) {
-        cerr << "Erro no sendto(), login()\n";
-        exit(1);
-    }
-
-    _addrlen=sizeof(_addr);
-    n=recvfrom(_fd,_buffer,128,0,(struct sockaddr*)&_addr,&_addrlen);
-    
-    if(n==-1) {
-        cerr << "Erro no recvfrom(), login()\n";
-        exit(1);
-    }
-    _buffer[n] = '\0';
+    int n = udpBufferProtocol(20, 128);
 
     // cout << "Eu recebi mas n checkei: " << _buffer; // serve para checkar o q se recebeu
 
@@ -203,19 +208,7 @@ int Interface::logout() {
     memcpy(_buffer + 19, "\n", 1);
     // cout << "Eu enviei: " << _buffer; // serve para ter acerteza do que foi enviado
 
-    int n=sendto(_fd, _buffer, 20, 0,_res->ai_addr,_res->ai_addrlen);
-    if(n==-1) {
-        cerr << "Erro no sendto(), logout()\n";
-        exit(1);
-    }
-
-    _addrlen=sizeof(_addr);
-    n=recvfrom(_fd,_buffer,128,0,(struct sockaddr*)&_addr,&_addrlen);
-    if(n==-1) {
-        cerr << "Erro no recvfrom(), logout()\n";
-        exit(1);
-    }
-    _buffer[n] = '\0';
+    int n = udpBufferProtocol(20, 128);
 
     // cout << "Eu recebi mas n checkei: " << _buffer; // server para checkar o input
 
@@ -254,20 +247,7 @@ int Interface::unregister() {
     memcpy(_buffer + 19, "\n", 1);
     // cout << "Eu enviei: " << _buffer; // serve para ter acerteza do que foi enviado
 
-    int n=sendto(_fd, _buffer, 20, 0,_res->ai_addr,_res->ai_addrlen);
-    if(n==-1) {
-        cerr << "Erro no sendto(), unregister()\n";
-        exit(1);
-    }
-
-    _addrlen=sizeof(_addr);
-    n=recvfrom(_fd,_buffer,128,0,(struct sockaddr*)&_addr,&_addrlen);
-    
-    if(n==-1) {
-        cerr << "Erro no recvfrom(), unregister()\n";
-        exit(1);
-    }
-    _buffer[n] = '\0';
+    int n = udpBufferProtocol(20, 128);
 
     // cout << "Eu recebi mas n checkei: " << _buffer; // serve para checkar o q se recebeu
 
@@ -297,20 +277,7 @@ int Interface::list() {
     memcpy(_buffer + 3, "\n", 1);
     cout << "Eu enviei: " << _buffer; // serve para checkar o que se enviou
 
-    int n=sendto(_fd, _buffer, 5, 0,_res->ai_addr,_res->ai_addrlen);
-    if(n==-1) {
-        cerr << "Erro no sendto(), list()\n";
-        exit(1);
-    }
-
-    _addrlen=sizeof(_addr);
-    n=recvfrom(_fd,_buffer,128,0,(struct sockaddr*)&_addr,&_addrlen);
-
-    if(n==-1) {
-        cerr << "Erro no recvfrom(), list()\n";
-        exit(1);
-    }
-    _buffer[n] = '\0';
+    int n = udpBufferProtocol(5, 200);
 
     cout << "Eu recebi: " << _buffer;
     // cout << "Eu recebi mas n checkei: " << _buffer; // serve para checkar o q se recebeu

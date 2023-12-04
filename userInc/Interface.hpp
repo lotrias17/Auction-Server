@@ -32,6 +32,7 @@ class Interface {
         int logout(); // falta ...
         int unregister();
         int list();
+        int udpBufferProtocol(int sendSize, int rcvSize);
         int _fd, _errcode;
         socklen_t _addrlen;
         struct addrinfo _hints, *_res;
