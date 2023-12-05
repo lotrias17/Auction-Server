@@ -303,8 +303,7 @@ int Interface::list() {
     }
 
     if (_buffer[4] == 'O' && _buffer[5] == 'K' && _buffer[6] == ' ') {
-        cout << "Buffer recebido do AS.\n";
-        cout << (_buffer + 7); // checkar o output!
+
         for (int i = 7; i < n; i += 6) {
             char number[4];
             number[0] = _buffer[i];
@@ -313,9 +312,9 @@ int Interface::list() {
             number[3] = '\0';
             string str = number;
             if (_buffer[i + 4] == '0') {
-                cout << "The Auction Number: " + str + " is not active!\n";
+                cout << "Auction Number: " + str + " is not active!\n";
             } else if (_buffer[i + 4] == '1'){
-                cout << "The Auction Number: " + str + " is active!\n";
+                cout << "Auction Number: " + str + " is active!\n";
             } else {
                 cout << "Problem with auction state Number: " + str + "\n";
             }

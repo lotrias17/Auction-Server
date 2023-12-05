@@ -14,9 +14,10 @@ int main(int argc, char** argv) {
     Interface base;
     // handle de argumentos
     
-    if (argc == 1) 
+    if (argc == 1) {
         base.prepareSocket();
-
+        cout << base.get() << '\n';
+    }
     if (argc == 3) {
         if (strcmp(argv[1], "-p") == 0) {
             if (checkPORTFormat(argv[2])) {
@@ -27,9 +28,7 @@ int main(int argc, char** argv) {
             }
         } else {
             if (strcmp(argv[1], "-n") == 0) {                   
-                cout << "AMIGO: " << argv[2] << '\n';
                 base = Interface(argv[2]);   
-                cout << base.get() << '\n';
             } else {
                 cerr << "flag invalida\n";
                 exit(1);
@@ -67,7 +66,7 @@ int main(int argc, char** argv) {
             continue;
         }
         if (base.exec() == -1)
-            exit(-1);
+            cout << "Algum erro.\n";
     }
     
 }
