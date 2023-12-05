@@ -82,7 +82,7 @@ int main(int argc, char** argv) {
             continue;
         }
         if (base.exec() == -1)
-            exit(-1);
+            cout << "Algum erro.\n";
     }
     
 }

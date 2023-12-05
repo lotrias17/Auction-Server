@@ -403,9 +403,9 @@ int Interface::list() {
                 return 0;
             }
             if (_buffer[i + 4] == '0') {
-                cout << "The Auction Number: " + str + " is not active!\n";
+                cout << "Auction Number: " + str + " is not active!\n";
             } else if (_buffer[i + 4] == '1'){
-                cout << "The Auction Number: " + str + " is active!\n";
+                cout << "Auction Number: " + str + " is active!\n";
             } else {
                 cout << "Problem with auction state Number: " + str + "\n";
             }
