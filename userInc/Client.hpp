@@ -6,12 +6,14 @@
 using namespace std;
 
 class Client {
-    public:
+public:
     Client(string UID, string password);
     string _UID;
     string _password;
     string toString();
-    private:
+private:
+    string status;
+
 };
 
 #endif
