@@ -31,9 +31,10 @@ class Interface {
         int login(); // falta ainda adicionar o check do que aconteceu apos madnar esta msg
         int logout(); // falta ...
         int unregister();
+        int myauctions();
         int list();
         int udpBufferProtocol(int sendSize, int rcvSize);
-        int _fd, _errcode;
+        int _udpfd, _errcode;
         socklen_t _addrlen;
         struct addrinfo _hints, *_res;
         struct sockaddr_in _addr;
