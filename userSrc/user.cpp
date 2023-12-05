@@ -81,8 +81,8 @@ int main(int argc, char** argv) {
         if (n == -1) {
             continue;
         }
-        if (base.exec() == -1)
-            cout << "Algum erro.\n";
+        if (base.exec() == -1) {
+            exit(1);
+        }
     }
-    
 }
