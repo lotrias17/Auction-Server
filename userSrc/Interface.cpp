@@ -8,21 +8,41 @@ void Interface::prepareSocket() {
         exit(1);
     }
 
+    memset(&_udphints, 0, sizeof(_udphints));
+    _udphints.ai_family=AF_INET;
+    _udphints.ai_socktype=SOCK_DGRAM;
+
+    _udperrcode=getaddrinfo(_server, (char*)to_string(_port).c_str(), &_udphints, &_udpres);
+    if(_udperrcode==-1) {
+        cerr << "Problema no addr info\n";
+        exit(1);
+    }
+    if (!_udpres) {
+        cerr << "Não foi encontrado o servidor que mencionou!\n";
+        exit(1);
+    }
+
     // Socket do TCP
 
-    memset(&_hints, 0, sizeof(_hints));
-    _hints.ai_family=AF_INET;
-    _hints.ai_socktype=SOCK_DGRAM;
+    _tcpfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (_tcpfd == -1) {
+        cerr << "Problema ao criar o socket!\n";
+        exit(1);
+    }
+
+    memset(&_tcphints, 0, sizeof(_tcphints));
+    _tcphints.ai_family=AF_INET;
+    _tcphints.ai_socktype=SOCK_STREAM;
 
     //cout << "Estou a tentar conectar ao sv: \"" << _server << "\"!\n";
     //cout << "Ao porto: \"" << (char*)to_string(_port).c_str() << "\"!\n";
 
-    _errcode=getaddrinfo(_server, (char*)to_string(_port).c_str(), &_hints, &_res);
-    if(_errcode==-1) {
+    _tcperrcode=getaddrinfo(_server, (char*)to_string(_port).c_str(), &_tcphints, &_tcpres);
+    if(_tcperrcode==-1) {
         cerr << "Problema no addr info\n";
         exit(1);
     }
-    if (!_res) {
+    if (!_tcpres) {
         cerr << "Não foi encontrado o servidor que mencionou!\n";
         exit(1);
     }
@@ -156,7 +176,7 @@ bool checkServerAnswer(int bufSize, char* buf, string corr) {
 
 int Interface::udpBufferProtocol(int sendSize, int rcvSize) {
 
-    int n = sendto(_udpfd, _buffer, sendSize, 0,_res->ai_addr,_res->ai_addrlen);
+    int n = sendto(_udpfd, _buffer, sendSize, 0,_udpres->ai_addr,_udpres->ai_addrlen);
     if(n==-1) {
         cerr << "Erro no sendto(), login()\n";
         exit(1);
@@ -169,9 +189,42 @@ int Interface::udpBufferProtocol(int sendSize, int rcvSize) {
         cerr << "Erro no recvfrom(), login()\n";
         exit(1);
     }
+    if (n == 8 * 1024) {
+        return n;
+    }
     _buffer[n] = '\0';
     return n;
 }
+
+int Interface::tcpBufferProtocol(int sendSize, int rcvSize) {
+    
+    int n;
+    n = connect(_tcpfd, _tcpres->ai_addr, _tcpres->ai_addrlen);
+    if (n == -1) {
+        cout << "Problema ao conectar com o servidor!\n";
+        exit(1);
+    }
+
+    n = write(_tcpfd, _buffer, sendSize);
+    if(n==-1) {
+        cerr << "Erro no write(), login()\n";
+        exit(1);
+    }
+
+    n = read(_tcpfd,_buffer,rcvSize);
+    if(n==-1) {
+        cerr << "Erro no read(), login()\n";
+        exit(1);
+    }
+    if (n == 8 * 1024) {
+        return n;
+    }
+    _buffer[n] = '\0';
+    close(_tcpfd);
+    return n;
+}
+
+// udp funcs
 
 int Interface::login() {
     memcpy(_buffer, "LIN", 3);
@@ -195,21 +248,21 @@ int Interface::login() {
     if (checkServerAnswer(n - 4, _buffer + 4, "OK\n")) {
         if (n - 7 != 0) {
             cout << "O servidor deu a resposta errada!\n";
-            return -1;
+            return 0;
         }
         cout << "Login feito ;)\n";
         return 0;
     } else if (checkServerAnswer(n - 4, _buffer + 4, "REG\n")) {
         if (n - 8 != 0) {
             cout << "O servidor deu a resposta errada!\n";
-            return -1;
+            return 0;
         }
         cout << "registro feito ;)\n";
         return 0;
     } else if (checkServerAnswer(n - 4, _buffer + 4, "NOK\n")) {
         if (n - 8 != 0) {
             cout << "O servidor deu a resposta errada!\n";
-            return -1;
+            return 0;
         }
         // password incorreta
         return 1;
@@ -236,13 +289,13 @@ int Interface::logout() {
 
     if (!checkServerAnswer(n, _buffer, "RLO ")) {
         cout << "O servidor deu a resposta errada!\n";
-        return -1;
+        return 0;
     }
 
     if (checkServerAnswer(n - 4, _buffer + 4, "OK\n")) {
         if (n - 7 != 0) {
             cout << "O servidor deu a resposta errada!\n";
-            return -1;
+            return 0;
         }
         cout << "Logout feito ;)\n";
         delete _client;
@@ -251,14 +304,14 @@ int Interface::logout() {
     } else if (checkServerAnswer(n - 4, _buffer + 4, "UNR\n")) {
         if (n - 8 != 0) {
             cout << "O servidor deu a resposta errada!\n";
-            return -1;
+            return 0;
         }
         cout << "User n resgistrado\n";
         return 2;
     } else if (checkServerAnswer(n - 4, _buffer + 4, "NOK\n")) {
         if (n - 8 != 0) {
             cout << "O servidor deu a resposta errada!\n";
-            return -1;
+            return 0;
         }
         cout << "User not logged in on server!\n";
         return 1;
@@ -285,13 +338,13 @@ int Interface::unregister() {
 
     if (!checkServerAnswer(n, _buffer, "RUR ")) {
         cout << "O servidor deu a resposta errada!\n";
-        return -1;
+        return 0;
     }
 
     if (checkServerAnswer(n - 4, _buffer + 4, "OK\n")) {
         if (n - 7 != 0) {
             cout << "O servidor deu a resposta errada!\n";
-            return -1;
+            return 0;
         }
         cout << "Unregistered e logout feito ;)\n";
         delete _client;
@@ -300,14 +353,14 @@ int Interface::unregister() {
     } else if (checkServerAnswer(n - 4, _buffer + 4, "UNR\n")) {
         if (n - 8 != 0) {
             cout << "O servidor deu a resposta errada!\n";
-            return -1;
+            return 0;
         }
         cout << "utilizador não registado ;)\n";
         return 1;
     } else if (checkServerAnswer(n - 4, _buffer + 4, "NOK\n")) {
         if (n - 8 != 0) {
             cout << "O servidor deu a resposta errada!\n";
-            return -1;
+            return 0;
         }
         cout << "sem utilizador logged in.\n";
         return 2;
@@ -318,7 +371,6 @@ int Interface::unregister() {
     return -1;
 }
 
-// to modify later
 int Interface::myauctions() {
     memcpy(_buffer, "LMA", 3);
     memcpy(_buffer + 3, " ", 1);
@@ -337,8 +389,39 @@ int Interface::myauctions() {
     }
 
     if (checkServerAnswer(n - 4, _buffer + 4, "OK ")) {
-        // fazer a listagem das auctions
-        cout << "Faremos agora a listagem de suas auctions\n";
+        cout << "LIstagem das auctions.\n";
+        cout << (_buffer + 7); // checkar o output!
+        if (7 + 5 > n) {
+            cout << "Lista de Auctions mal formatada pelo servidor!\n";
+            return 0;
+        }
+        for (int i = 7; i < n; i += 6) {
+            if (i + 5 > n) {
+                cout << "Lista de Auctions mal formatada pelo servidor!\n";
+                break;
+            }
+            char number[4];
+            number[0] = _buffer[i];
+            number[1] = _buffer[i + 1];
+            number[2] = _buffer[i + 2];
+            number[3] = '\0';
+            string str = number;
+            if (!isNumeric(str)) {
+                cout << "Lista de Auctions mal formatada pelo servidor!\n";
+                return 0;
+            }
+            if (_buffer[i + 3] != ' ' || (_buffer[i + 5] != ' ' && _buffer[i + 5] != '\n')) {
+                cout << "Lista de Auctions mal formatada pelo servidor!\n";
+                return 0;
+            }
+            if (_buffer[i + 4] == '0') {
+                cout << "Your auction Number: " + str + " is not active!\n";
+            } else if (_buffer[i + 4] == '1'){
+                cout << "Your auction Number: " + str + " is active!\n";
+            } else {
+                cout << "Problem with auction state Number: " + str + "\n";
+            }
+        }
         return 0;
     } else if (checkServerAnswer(n - 4, _buffer + 4, "NLG\n")) {
         if (n - 8 != 0) {
@@ -373,7 +456,7 @@ int Interface::list() {
 
     if (!checkServerAnswer(n, _buffer, "RLS ")) {
         cout << "O servidor deu a resposta errada!\n";
-        return -1;
+        return 0;
     }
 
     if (checkServerAnswer(n - 4, _buffer + 4, "OK ")) {
@@ -423,6 +506,150 @@ int Interface::list() {
     cout << "O servidor deu a resposta errada!\n";
 
     return -1;
+}
+
+// TCP funcs
+
+// problema com o close
+int Interface::open() {
+
+    int j = 0;
+    memcpy(_buffer, "OPA", 3);
+    memcpy(_buffer + 3, " ", 1);
+    memcpy(_buffer + 4, (char*)_client->_UID.c_str(), 6);
+    memcpy(_buffer + 10, " ", 1);
+    memcpy(_buffer + 11, (char*)_client->_password.c_str(), 8);
+    memcpy(_buffer + 19, " ", 1);
+    memcpy(_buffer + 20, _words[1].c_str(), _words[1].size());
+    j = 20 + _words[1].size();
+    memcpy(_buffer + j, " ", 1);
+    j++;
+    memcpy(_buffer + j, _words[3].c_str(), _words[3].size());
+    j += _words[3].size();
+    memcpy(_buffer + j, " ", 1);
+    j++;
+    memcpy(_buffer + j, _words[4].c_str(), _words[4].size());
+    j += _words[4].size();
+    memcpy(_buffer + j, " ", 1);
+    j++;
+    memcpy(_buffer + j, _words[2].c_str(), _words[2].size());
+    j += _words[2].size();
+    memcpy(_buffer + j, " ", 1);
+    j++;
+    // file part
+    ifstream inFile;
+    // cout << "Procurando o ficheiro: " + _words[2] << "\n";
+    inFile.open(_words[2].c_str(), ios::binary);
+    if (!inFile.is_open()) {
+        cout << "Ficheiro não encontrado!\n";
+        return 0;
+    }
+    inFile.seekg(0, ios::end);
+    int fileSize = inFile.tellg();
+    inFile.close();
+    string size = to_string(fileSize);
+    memcpy(_buffer + j, size.c_str(), size.size());
+    j += size.size();
+    memcpy(_buffer + j, " ", 1);
+    j++;
+    _buffer[j] = '\0';
+
+    int n = 0;
+    n = connect(_tcpfd, _tcpres->ai_addr, _tcpres->ai_addrlen);
+    if (n == -1) {
+        cout << "Problema ao conectar com o servidor (devido ao close ser vagabundo)!\n";
+        exit(1);
+    }
+
+    n = write(_tcpfd, _buffer, j);
+    if(n==-1) {
+        cerr << "Erro no write(), login()\n";
+        exit(1);
+    }
+
+    cout << "Enviei isto: " << _buffer << "\n";
+
+    inFile.open(_words[2].c_str());
+    if (!inFile.is_open()) {
+        cout << "Ficheiro não encontrado!\n";
+        return 0;
+    }
+
+    int read1, write1;
+    int sent = 0;
+    while (sent < fileSize) {
+        inFile.read(_buffer, 8 * 1024);
+        read1 = inFile.gcount();
+        if (read1 == 0) {
+            cout << "Sai por aqui!\n";
+            break;
+        }
+        // cout << "Enviando " << read1 << " bytes: " << _buffer;
+        write1 = 0;
+        while (write1 < read1) {
+            write1 = write(_tcpfd, _buffer, read1);
+            sent += write1;
+            // cout << "Foram escritos " << sent << " bytes\n";
+        }
+    }
+    n = write(_tcpfd, "\n", 1);
+    if (n == -1) {
+        cout << "Hmmmmm!\n";
+        return 0;
+    }
+    cout << "All data sent!\n";
+
+    // receber merdas
+
+    n = read(_tcpfd, _buffer, 8 * 1024);
+    if(n==-1) {
+        cerr << "Erro no read(), login()\n";
+        exit(1);
+    }
+    if (n == 8 * 1024) {
+        return n;
+    }
+    _buffer[n] = '\0';
+
+    cout << "Recebi mas n checkei: " << _buffer;
+
+    if (checkServerAnswer(n - 4, _buffer + 4, "OK ")) {
+        // fazer a listagem das auctions
+        if (n - 11 != 0) {
+            cout << "O servidor deu a resposta errada!\n";
+            return 0;
+        }
+        char number[4];
+        number[0] = _buffer[7];
+        number[1] = _buffer[8];
+        number[2] = _buffer[9];
+        number[3] = '\0';
+        string jota = number;
+        if (!isNumeric(jota)) {
+            cout << "Numero da auction mal formatado!\n";
+            return 0;
+        }
+        cout << "Ficou com a auction numero: " << jota << "\n";
+        return 0;
+    } else if (checkServerAnswer(n - 4, _buffer + 4, "NLG\n")) {
+        if (n - 8 != 0) {
+            cout << "O servidor deu a resposta errada!\n";
+            return 0;
+        }
+        cout << "utilizador não esta logado ;)\n";
+        return 1;
+    } else if (checkServerAnswer(n - 4, _buffer + 4, "NOK\n")) {
+        if (n - 8 != 0) {
+            cout << "O servidor deu a resposta errada!\n";
+            return 0;
+        }
+        cout << "Não foi possivel criar a sua auction.\n";
+        return 2;
+    }
+
+    close(_tcpfd);
+
+    return 0;
 }
 
 int Interface::exec() {
@@ -540,6 +767,31 @@ int Interface::exec() {
             int n = myauctions();
             if (n == -1) {
                 cerr << "Deu merda no myauctions!\n";
+                return -1;
+            }
+            return 0;
+        }
+    } else if (_words[0] == "open") {
+        if (_nWords != 5) {
+            cout << "Comando mal inserido: open name asset_fname start_value time_active";
+            return 0;
+        } else {
+            if (_client == NULL) {
+                cout << "Não pode criar uma auction anonima!\n";
+                return 0;
+            } else if (!isAlphaNumeric(_words[1]) || _words[1].size() > 10) {
+                cout << "O nome do produto tem de ser menor que 10 characteres!\n";
+                return 0;
+            } else if (!isNumeric(_words[3]) || _words[3].size() > 6) {
+                cout << "O start value tem que ser um numero inferior a 10^7!\n";
+                return 0;
+            } else if (!isNumeric(_words[4]) || _words[4].size() > 5) {
+                cout << "O time dever ser um numero inferor a 10^6!\n";
+                return 0;
+            }
+            int n = open();
+            if (n == -1) {
+                cout << "Deu merda no open!\n";
                 return -1;
             }
             return 0;

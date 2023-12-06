@@ -33,10 +33,12 @@ class Interface {
         int unregister();
         int myauctions();
         int list();
+        int open();
         int udpBufferProtocol(int sendSize, int rcvSize);
-        int _udpfd, _errcode;
+        int tcpBufferProtocol(int sendSize, int rcvSize);
+        int _udpfd, _tcpfd, _udperrcode, _tcperrcode;
         socklen_t _addrlen;
-        struct addrinfo _hints, *_res;
+        struct addrinfo _udphints, _tcphints, *_udpres, *_tcpres;
         struct sockaddr_in _addr;
         char _buffer[8 * 1024];
         Client* _client; // so criar isto se realmente deu login

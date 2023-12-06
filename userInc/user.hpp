@@ -13,6 +13,7 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <cstring> 
+#include <fstream>
 
 #include "Client.hpp"
 #include "Interface.hpp"
