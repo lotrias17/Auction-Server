@@ -11,9 +11,7 @@ public:
     string _UID;
     string _password;
     string toString();
-private:
-    string status;
-
+    string _status = "unregistered";
 };
 
 #endif

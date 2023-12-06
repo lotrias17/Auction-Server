@@ -63,11 +63,11 @@ void receiveRequest() {
             else if (m == 0) break;
         }
 
-        write(1, "received: ", 10); write(1, buffer, n);
+        /*write(1, "received: ", 10); write(1, buffer, n);
         n=sendto(fd,buffer,n,0,(struct sockaddr*) &addr, addrlen);
         if (n==-1) {
             cout << "Problema no sendto.\n";
-        }
+        }*/
     }
     return;
 }
@@ -109,15 +109,42 @@ int processLogin(string uid, string password) {
         return -1;
     }
 
-    auto res = userList.find(uid);
-
     cout << "ASH.\n";
 
-    if (res == userList.end()) {  //unregistered
+    if (userList.find(uid) == userList.end()) {  //unregistered
         Client* c = new Client(uid, password);
+        c->_status = "logged in";
         userList.insert({uid, c});
         cout << "Registered User: " << uid << '\n';
-        return 0;
+
+        // Maybe just put this sendto into a func: udpSend/udpRcv
+        n=sendto(fd,"RLI REG\n",8,0,(struct sockaddr*) &addr, addrlen);
+        if (n==-1) {
+            cout << "Problema no sendto.\n";
+        }
+    } else {
+        if (userList[uid]->_status != "logged in") {    // logged out
+            if (userList[uid]->_password == password) {
+                userList[uid]->_status = "logged in";
+                cout << "Logged in User: " << uid << '\n';
+
+                n=sendto(fd,"RLI OK\n",7,0,(struct sockaddr*) &addr, addrlen);
+                if (n==-1) {
+                    cout << "Problema no sendto.\n";
+                }
+            } else {
+                cout << "Wrong password.\n";
+                n=sendto(fd,"RLI NOK\n",8,0,(struct sockaddr*) &addr, addrlen);
+                if (n==-1) {
+                    cout << "Problema no sendto.\n";
+                }
+            }
+        }
+        else cout << "User already logged in.\n";
+        n=sendto(fd,"RLI NOK\n",8,0,(struct sockaddr*) &addr, addrlen);
+        if (n==-1) {
+            cout << "Problema no sendto.\n";
+        }
     }
 
     return 0;
@@ -133,7 +160,6 @@ bool checkFormat(string format, string str) {
 
 
 int main() {
-    userList.erase(userList.begin(), userList.end());
     cout << "Ola meu servidor!\n";
 
     receiveRequest();
