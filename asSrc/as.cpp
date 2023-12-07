@@ -59,7 +59,13 @@ void receiveRequest() {
         }
         else {
             int m = serverResponse(buffer);
-            if (m == -1) cerr << "Problema ao processar request.\n";
+            if (m == -1) {
+                cerr << "Problema ao processar request.\n";
+                n=sendto(fd,"ERR\n",4,0,(struct sockaddr*) &addr, addrlen);
+                if (n==-1) {
+                    cout << "Problema no sendto: ERR\n";
+                }  
+            }
             else if (m == 0) break;
         }
 
@@ -88,11 +94,20 @@ int serverResponse(char* buffer) {
         cout << "Process Login:\n";
         if ((n = processLogin(input[1], input[2])) == -1) {
             cerr << "Problema a processar login.\n";
-        }
+            return -1;
+        } 
     } else if (input[0] == "LOU") {
         cout << "Process Logout:\n";
+        if ((n = processLogout(input[1])) == -1) {
+            cerr << "Problema a processar logout.\n";
+            return -1;;
+        }
     } else if (input[0] == "UNR") {
         cout << "Process Unregister:\n";
+        if ((n = processUnregister(input[1])) == -1) {
+            cerr << "Problema a processar logout.\n";
+            return -1;;
+        }
     } else if (input[0] == "LST") {
         cout << "Process List:\n";
     }
@@ -109,8 +124,6 @@ int processLogin(string uid, string password) {
         return -1;
     }
 
-    cout << "ASH.\n";
-
     if (userList.find(uid) == userList.end()) {  //unregistered
         Client* c = new Client(uid, password);
         c->_status = "logged in";
@@ -120,35 +133,104 @@ int processLogin(string uid, string password) {
         // Maybe just put this sendto into a func: udpSend/udpRcv
         n=sendto(fd,"RLI REG\n",8,0,(struct sockaddr*) &addr, addrlen);
         if (n==-1) {
-            cout << "Problema no sendto.\n";
+            cout << "Problema no sendto: RLI REG\n";
         }
     } else {
-        if (userList[uid]->_status != "logged in") {    // logged out
+        if (userList[uid]->_status == "logged out") {    // logged out
             if (userList[uid]->_password == password) {
                 userList[uid]->_status = "logged in";
                 cout << "Logged in User: " << uid << '\n';
 
                 n=sendto(fd,"RLI OK\n",7,0,(struct sockaddr*) &addr, addrlen);
                 if (n==-1) {
-                    cout << "Problema no sendto.\n";
+                    cout << "Problema no sendto: RLI OK\n";
                 }
             } else {
                 cout << "Wrong password.\n";
                 n=sendto(fd,"RLI NOK\n",8,0,(struct sockaddr*) &addr, addrlen);
                 if (n==-1) {
-                    cout << "Problema no sendto.\n";
+                    cout << "Problema no sendto: RLI NOK\n";
                 }
             }
-        }
-        else cout << "User already logged in.\n";
-        n=sendto(fd,"RLI NOK\n",8,0,(struct sockaddr*) &addr, addrlen);
-        if (n==-1) {
-            cout << "Problema no sendto.\n";
+        } else {
+            cout << "User already logged in.\n";
+            n=sendto(fd,"RLI NOK\n",8,0,(struct sockaddr*) &addr, addrlen);
+            if (n==-1) {
+                cout << "Problema no sendto: RLI NOK\n";
+            }
         }
     }
-
     return 0;
 }
+
+int processLogout(string uid) {
+
+    if (!checkFormat("uid", uid)) {
+        cerr << "Poorly formatted request.\n";
+        return -1;
+    }
+
+    if (userList.find(uid) == userList.end()) {  //unregistered
+        cout << "Unregistered User: " << uid << '\n';
+
+        // Maybe just put this sendto into a func: udpSend/udpRcv
+        n=sendto(fd,"RLO UNR\n",8,0,(struct sockaddr*) &addr, addrlen);
+        if (n==-1) {
+            cout << "Problema no sendto: RLO UNR\n";
+        }
+    } else {
+        if (userList[uid]->_status == "logged out") {    // logged out
+            cout << "User already logged out: " << uid << '\n';
+            n=sendto(fd,"RLO NOK\n",8,0,(struct sockaddr*) &addr, addrlen);
+            if (n==-1) {
+                cout << "Problema no sendto: RLO NOK\n";
+            }
+        } else { 
+            userList[uid]->_status = "logged out";
+            cout << "Logged out User: " << uid << '\n';
+            n=sendto(fd,"RLO OK\n",7,0,(struct sockaddr*) &addr, addrlen);
+            if (n==-1) {
+                cout << "Problema no sendto: RLI OK\n";
+            }
+        }
+    }
+    return 0;
+}
+
+int processUnregister(string uid) {
+
+    if (!checkFormat("uid", uid)) {
+        cerr << "Poorly formatted request.\n";
+        return -1;
+    }
+
+    if (userList.find(uid) == userList.end()) {  //unregistered
+        cout << "User not registered: " << uid << '\n';
+        // Maybe just put this sendto into a func: udpSend/udpRcv
+        n=sendto(fd,"RUR UNR\n",8,0,(struct sockaddr*) &addr, addrlen);
+        if (n==-1) {
+            cout << "Problema no sendto: RLO UNR\n";
+        }
+    } else {
+        if (userList[uid]->_status == "logged out") {    // logged out
+            cout << "User is logged out: " << uid << '\n';
+            n=sendto(fd,"RUR NOK\n",8,0,(struct sockaddr*) &addr, addrlen);
+            if (n==-1) {
+                cout << "Problema no sendto: RLO NOK\n";
+            }
+        } else { 
+            userList.erase(uid);
+            cout << "Unregistered User: " << uid << '\n';
+            n=sendto(fd,"RUR OK\n",7,0,(struct sockaddr*) &addr, addrlen);
+            if (n==-1) {
+                cout << "Problema no sendto: RLI OK\n";
+            }
+        }
+    }
+    return 0;
+}
+
+
 
 bool checkFormat(string format, string str) {
     if (format == "uid") return str.size() == 6 && isNumeric(str); 
