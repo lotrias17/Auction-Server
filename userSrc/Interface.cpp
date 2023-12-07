@@ -24,28 +24,6 @@ void Interface::prepareSocket() {
 
     // Socket do TCP
 
-    _tcpfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (_tcpfd == -1) {
-        cerr << "Problema ao criar o socket!\n";
-        exit(1);
-    }
-
-    memset(&_tcphints, 0, sizeof(_tcphints));
-    _tcphints.ai_family=AF_INET;
-    _tcphints.ai_socktype=SOCK_STREAM;
-
-    //cout << "Estou a tentar conectar ao sv: \"" << _server << "\"!\n";
-    //cout << "Ao porto: \"" << (char*)to_string(_port).c_str() << "\"!\n";
-
-    _tcperrcode=getaddrinfo(_server, (char*)to_string(_port).c_str(), &_tcphints, &_tcpres);
-    if(_tcperrcode==-1) {
-        cerr << "Problema no addr info\n";
-        exit(1);
-    }
-    if (!_tcpres) {
-        cerr << "Não foi encontrado o servidor que mencionou!\n";
-        exit(1);
-    }
     return;
 }
 
@@ -145,6 +123,10 @@ bool Interface::checkpasswordFormat(string str) {
     return str.size() == 8 && isAlphaNumeric(str);
 }
 
+bool Interface::checkAIDFormat(string str) {
+    return str.size() == 3 && isNumeric(str);
+}
+
 int Interface::get() {  //logo pode-se apagar acho eu
     cout << "YES: " << _port << ", " << _server << '\n';
     return 0;
@@ -198,6 +180,29 @@ int Interface::udpBufferProtocol(int sendSize, int rcvSize) {
 
 int Interface::tcpBufferProtocol(int sendSize, int rcvSize) {
     
+    _tcpfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (_tcpfd == -1) {
+        cerr << "Problema ao criar o socket!\n";
+        exit(1);
+    }
+
+    memset(&_tcphints, 0, sizeof(_tcphints));
+    _tcphints.ai_family=AF_INET;
+    _tcphints.ai_socktype=SOCK_STREAM;
+
+    //cout << "Estou a tentar conectar ao sv: \"" << _server << "\"!\n";
+    //cout << "Ao porto: \"" << (char*)to_string(_port).c_str() << "\"!\n";
+
+    _tcperrcode=getaddrinfo(_server, (char*)to_string(_port).c_str(), &_tcphints, &_tcpres);
+    if(_tcperrcode==-1) {
+        cerr << "Problema no addr info\n";
+        exit(1);
+    }
+    if (!_tcpres) {
+        cerr << "Não foi encontrado o servidor que mencionou!\n";
+        exit(1);
+    }
+
     int n;
     n = connect(_tcpfd, _tcpres->ai_addr, _tcpres->ai_addrlen);
     if (n == -1) {
@@ -234,11 +239,11 @@ int Interface::login() {
     memcpy(_buffer + 11, (char*)_words[2].c_str(), 8);
     memcpy(_buffer + 19, "\n", 1);
     _buffer[20] = '\0';
-    cout << "Eu enviei: " << _buffer; // serve para checkar o que se enviou
+    // cout << "Eu enviei: " << _buffer; // serve para checkar o que se enviou
 
     int n = udpBufferProtocol(20, 128);
 
-    cout << "Eu recebi mas n checkei: " << _buffer; // serve para checkar o q se recebeu
+    // cout << "Eu recebi mas n checkei: " << _buffer; // serve para checkar o q se recebeu
 
     if (!checkServerAnswer(n, _buffer, "RLI ")) {
         cout << "O servidor deu a resposta errada!\n";
@@ -281,11 +286,11 @@ int Interface::logout() {
     memcpy(_buffer + 11, (char*)_client->_password.c_str(), 8);
     memcpy(_buffer + 19, "\n", 1);
     _buffer[20] = '\0';
-    cout << "Eu enviei: " << _buffer; // serve para ter acerteza do que foi enviado
+    // cout << "Eu enviei: " << _buffer; // serve para ter acerteza do que foi enviado
 
     int n = udpBufferProtocol(20, 128);
 
-    cout << "Eu recebi mas n checkei: " << _buffer; // server para checkar o input
+    // cout << "Eu recebi mas n checkei: " << _buffer; // server para checkar o input
 
     if (!checkServerAnswer(n, _buffer, "RLO ")) {
         cout << "O servidor deu a resposta errada!\n";
@@ -330,11 +335,11 @@ int Interface::unregister() {
     memcpy(_buffer + 11, (char*)_client->_password.c_str(), 8);
     memcpy(_buffer + 19, "\n", 1);
     _buffer[20] = '\0';
-    cout << "Eu enviei: " << _buffer; // serve para ter acerteza do que foi enviado
+    // cout << "Eu enviei: " << _buffer; // serve para ter acerteza do que foi enviado
 
     int n = udpBufferProtocol(20, 128);
 
-    cout << "Eu recebi mas n checkei: " << _buffer; // serve para checkar o q se recebeu
+    // cout << "Eu recebi mas n checkei: " << _buffer; // serve para checkar o q se recebeu
 
     if (!checkServerAnswer(n, _buffer, "RUR ")) {
         cout << "O servidor deu a resposta errada!\n";
@@ -377,11 +382,11 @@ int Interface::myauctions() {
     memcpy(_buffer + 4, (char*)_client->_UID.c_str(), 6);
     memcpy(_buffer + 10, "\n", 1);
     _buffer[11] = '\0';
-    cout << "Eu enviei: " << _buffer; // serve para ter acerteza do que foi enviado
+    // cout << "Eu enviei: " << _buffer; // serve para ter acerteza do que foi enviado
 
     int n = udpBufferProtocol(11, 8 * 1024);
 
-    cout << "Eu recebi mas n checkei: " << _buffer; // serve para checkar o q se recebeu
+    // cout << "Eu recebi mas n checkei: " << _buffer; // serve para checkar o q se recebeu
 
     if (!checkServerAnswer(n, _buffer, "RMA ")) {
         cout << "O servidor deu a resposta errada!\n";
@@ -444,15 +449,88 @@ int Interface::myauctions() {
     return -1;
 }
 
+int Interface::mybids() {
+    memcpy(_buffer, "LMB", 3);
+    memcpy(_buffer + 3, " ", 1);
+    memcpy(_buffer + 4, (char*)_client->_UID.c_str(), 6);
+    memcpy(_buffer + 10, "\n", 1);
+    _buffer[11] = '\0';
+    // cout << "Eu enviei: " << _buffer; // serve para ter acerteza do que foi enviado
+
+    int n = udpBufferProtocol(11, 8 * 1024);
+
+    // cout << "Eu recebi mas n checkei: " << _buffer; // serve para checkar o q se recebeu
+
+    if (!checkServerAnswer(n, _buffer, "RMB ")) {
+        cout << "O servidor deu a resposta errada!\n";
+        return -1;
+    }
+
+    if (checkServerAnswer(n - 4, _buffer + 4, "OK ")) {
+        cout << "LIstagem das auctions.\n";
+        cout << (_buffer + 7); // checkar o output!
+        if (7 + 5 > n) {
+            cout << "Lista de Auctions mal formatada pelo servidor!\n";
+            return 0;
+        }
+        for (int i = 7; i < n; i += 6) {
+            if (i + 5 > n) {
+                cout << "Lista de Auctions mal formatada pelo servidor!\n";
+                break;
+            }
+            char number[4];
+            number[0] = _buffer[i];
+            number[1] = _buffer[i + 1];
+            number[2] = _buffer[i + 2];
+            number[3] = '\0';
+            string str = number;
+            if (!isNumeric(str)) {
+                cout << "Lista de Bids mal formatada pelo servidor!\n";
+                return 0;
+            }
+            if (_buffer[i + 3] != ' ' || (_buffer[i + 5] != ' ' && _buffer[i + 5] != '\n')) {
+                cout << "Lista de Bids mal formatada pelo servidor!\n";
+                return 0;
+            }
+            if (_buffer[i + 4] == '0') {
+                cout << "Your bid in the auction Number: " + str + " is not active!\n";
+            } else if (_buffer[i + 4] == '1'){
+                cout << "Your bid in the auction Number: " + str + " is active!\n";
+            } else {
+                cout << "Problem with bid in auction state Number: " + str + "\n";
+            }
+        }
+        return 0;
+    } else if (checkServerAnswer(n - 4, _buffer + 4, "NLG\n")) {
+        if (n - 8 != 0) {
+            cout << "O servidor deu a resposta errada!\n";
+            return -1;
+        }
+        cout << "utilizador não esta logado ;)\n";
+        return 1;
+    } else if (checkServerAnswer(n - 4, _buffer + 4, "NOK\n")) {
+        if (n - 8 != 0) {
+            cout << "O servidor deu a resposta errada!\n";
+            return -1;
+        }
+        cout << "Não tem nenhuma ongoing bid.\n";
+        return 2;
+    }
+
+    cout << "O servidor deu a resposta errada!\n";
+
+    return -1;
+}
+
 int Interface::list() {
     memcpy(_buffer, "LST", 3);
     memcpy(_buffer + 3, "\n", 1);
     _buffer[4] = '\0';
-    cout << "Eu enviei: " << _buffer; // serve para checkar o que se enviou
+    // cout << "Eu enviei: " << _buffer; // serve para checkar o que se enviou
 
     int n = udpBufferProtocol(4, 8 * 1024);
 
-    cout << "Eu recebi mas n checkei: " << _buffer; // serve para checkar o q se recebeu
+    // cout << "Eu recebi mas n checkei: " << _buffer; // serve para checkar o q se recebeu
 
     if (!checkServerAnswer(n, _buffer, "RLS ")) {
         cout << "O servidor deu a resposta errada!\n";
@@ -510,7 +588,6 @@ int Interface::list() {
 
 // TCP funcs
 
-// problema com o close
 int Interface::open() {
 
     int j = 0;
@@ -554,6 +631,29 @@ int Interface::open() {
     j++;
     _buffer[j] = '\0';
 
+    _tcpfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (_tcpfd == -1) {
+        cerr << "Problema ao criar o socket!\n";
+        exit(1);
+    }
+
+    memset(&_tcphints, 0, sizeof(_tcphints));
+    _tcphints.ai_family=AF_INET;
+    _tcphints.ai_socktype=SOCK_STREAM;
+
+    //cout << "Estou a tentar conectar ao sv: \"" << _server << "\"!\n";
+    //cout << "Ao porto: \"" << (char*)to_string(_port).c_str() << "\"!\n";
+
+    _tcperrcode=getaddrinfo(_server, (char*)to_string(_port).c_str(), &_tcphints, &_tcpres);
+    if(_tcperrcode==-1) {
+        cerr << "Problema no addr info\n";
+        exit(1);
+    }
+    if (!_tcpres) {
+        cerr << "Não foi encontrado o servidor que mencionou!\n";
+        exit(1);
+    }
+
     int n = 0;
     n = connect(_tcpfd, _tcpres->ai_addr, _tcpres->ai_addrlen);
     if (n == -1) {
@@ -567,7 +667,7 @@ int Interface::open() {
         exit(1);
     }
 
-    cout << "Enviei isto: " << _buffer << "\n";
+    // cout << "Enviei isto: " << _buffer << "\n";
 
     inFile.open(_words[2].c_str());
     if (!inFile.is_open()) {
@@ -597,7 +697,7 @@ int Interface::open() {
         cout << "Hmmmmm!\n";
         return 0;
     }
-    cout << "All data sent!\n";
+    // cout << "All data sent!\n";
 
     // receber merdas
 
@@ -611,7 +711,7 @@ int Interface::open() {
     }
     _buffer[n] = '\0';
 
-    cout << "Recebi mas n checkei: " << _buffer;
+    // cout << "Recebi mas n checkei: " << _buffer;
 
     if (checkServerAnswer(n - 4, _buffer + 4, "OK ")) {
         // fazer a listagem das auctions
@@ -650,6 +750,141 @@ int Interface::open() {
     close(_tcpfd);
 
     return 0;
+}
+
+int Interface::closea() {
+
+    memcpy(_buffer, "CLS", 3);
+    memcpy(_buffer + 3, " ", 1);
+    memcpy(_buffer + 4, (char*)_client->_UID.c_str(), 6);
+    memcpy(_buffer + 10, " ", 1);
+    memcpy(_buffer + 11, (char*)_client->_password.c_str(), 8);
+    memcpy(_buffer + 19, " ", 1);
+    memcpy(_buffer + 20, _words[1].c_str(), 3);
+    memcpy(_buffer + 23, "\n", 1);
+    _buffer[24] = '\0';
+    // cout << "Eu enviei: " << _buffer; // serve para ter acerteza do que foi enviado
+
+    int n = tcpBufferProtocol(24, 128);
+
+    // cout << "Eu recebi mas n checkei: " << _buffer; // serve para checkar o q se recebeu
+
+    if (!checkServerAnswer(n, _buffer, "RCL ")) {
+        cout << "O servidor deu a resposta errada!\n";
+        return 0;
+    }
+
+    if (checkServerAnswer(n - 4, _buffer + 4, "OK\n")) {
+        if (n - 7 != 0) {
+            cout << "O servidor deu a resposta errada!\n";
+            return 0;
+        }
+        cout << "Auction fechada corretamente ;)\n";
+        return 0;
+    } else if (checkServerAnswer(n - 4, _buffer + 4, "NLG\n")) {
+        if (n - 8 != 0) {
+            cout << "O servidor deu a resposta errada!\n";
+            return 0;
+        }
+        cout << "utilizador não esta logado ;)\n";
+        return 1;
+    } else if (checkServerAnswer(n - 4, _buffer + 4, "EAU\n")) {
+        if (n - 8 != 0) {
+            cout << "O servidor deu a resposta errada!\n";
+            return 0;
+        }
+        cout << "Não existe a auction que mencionou!\n";
+        return 2;
+    } else if (checkServerAnswer(n - 4, _buffer + 4, "EOW\n")) {
+        if (n - 8 != 0) {
+            cout << "O servidor deu a resposta errada!\n";
+            return 0;
+        }
+        cout << "A auction não lhe pertence!\n";
+        return 0;
+    } else if (checkServerAnswer(n - 4, _buffer + 4, "END\n")) {
+        if ((n - 8 != 0)) {
+            cout << "O servidor deu a resposta errada!\n";
+            return 0;
+        }
+        cout << "A auction que esta a tentar fechar ja se encontra fechada.\n";
+        return 0;
+    }
+
+    cout << "O servidor deu a resposta errada!\n";
+
+    return -1;
+
+}
+
+int Interface::bid() {
+
+    int j = 0;
+    memcpy(_buffer, "BID", 3);
+    memcpy(_buffer + 3, " ", 1);
+    memcpy(_buffer + 4, (char*)_client->_UID.c_str(), 6);
+    memcpy(_buffer + 10, " ", 1);
+    memcpy(_buffer + 11, (char*)_client->_password.c_str(), 8);
+    memcpy(_buffer + 19, " ", 1);
+    memcpy(_buffer + 20, _words[1].c_str(), 3);
+    memcpy(_buffer + 23, " ", 1);
+    memcpy(_buffer + 24, _words[2].c_str(), _words[2].size());
+    j = 24 + _words[2].size();
+    memcpy(_buffer + j, "\n", 1);
+    j++;
+    _buffer[j] = '\0';
+    // cout << "Eu enviei: " << _buffer; // serve para ter acerteza do que foi enviado
+
+    int n = tcpBufferProtocol(j, 128);
+
+    // cout << "Eu recebi mas n checkei: " << _buffer; // serve para checkar o q se recebeu
+
+    if (!checkServerAnswer(n, _buffer, "RBD ")) {
+        cout << "O servidor deu a resposta errada!\n";
+        return 0;
+    }
+
+    if (checkServerAnswer(n - 4, _buffer + 4, "ACC\n")) {
+        if (n - 8 != 0) {
+            cout << "O servidor deu a resposta errada!\n";
+            return 0;
+        }
+        cout << "bid colocada corretamente ;)\n";
+        return 0;
+    } else if (checkServerAnswer(n - 4, _buffer + 4, "NLG\n")) {
+        if (n - 8 != 0) {
+            cout << "O servidor deu a resposta errada!\n";
+            return 0;
+        }
+        cout << "utilizador não esta logado ;)\n";
+        return 1;
+    } else if (checkServerAnswer(n - 4, _buffer + 4, "NOK\n")) {
+        if (n - 8 != 0) {
+            cout << "O servidor deu a resposta errada!\n";
+            return 0;
+        }
+        cout << "Não existe a auction que mencionou!\n";
+        return 2;
+    } else if (checkServerAnswer(n - 4, _buffer + 4, "REF\n")) {
+        if (n - 8 != 0) {
+            cout << "O servidor deu a resposta errada!\n";
+            return 0;
+        }
+        cout << "A bid que colocou e inferior ao valor atual!\n";
+        return 0;
+    } else if (checkServerAnswer(n - 4, _buffer + 4, "ILG\n")) {
+        if ((n - 8 != 0)) {
+            cout << "O servidor deu a resposta errada!\n";
+            return 0;
+        }
+        cout << "É ilegal dar bid nas suas proprias auctions.\n";
+        return 0;
+    }
+
+    cout << "O servidor deu a resposta errada!\n";
+
+    return -1;
+
 }
 
 int Interface::exec() {
@@ -743,18 +978,7 @@ int Interface::exec() {
             }*/
             return 0;
         }
-    } else if (_words[0] == "list" || _words[0] == "l") {
-        if (_nWords != 1) {
-            cout << "Comando mal inserido: list\n";
-            return 0;
-        } else {
-            int n = list();
-            if (n == -1) {
-                std::cerr << "Deu merda no list!\n";
-                return -1;
-            }
-            return 0;
-        }
+    
     } else if (_words[0] == "myauctions" || _words[0] == "ma"){
         if (_nWords != 1) {
             cout << "Comando mal inserido: myauctions\n";
@@ -767,6 +991,34 @@ int Interface::exec() {
             int n = myauctions();
             if (n == -1) {
                 cerr << "Deu merda no myauctions!\n";
+                return -1;
+            }
+            return 0;
+        }
+    } else if (_words[0] == "mybids" || _words[0] == "mb"){
+        if (_nWords != 1) {
+            cout << "Comando mal inserido: myabids\n";
+            return 0;
+        } else {
+            if (_client == NULL) {
+                cout << "Ainda não deu login!\n";
+                return 0;
+            }
+            int n = mybids();
+            if (n == -1) {
+                cerr << "Deu merda no mybids!\n";
+                return -1;
+            }
+            return 0;
+        }
+    } else if (_words[0] == "list" || _words[0] == "l") {
+        if (_nWords != 1) {
+            cout << "Comando mal inserido: list\n";
+            return 0;
+        } else {
+            int n = list();
+            if (n == -1) {
+                std::cerr << "Deu merda no list!\n";
                 return -1;
             }
             return 0;
@@ -796,7 +1048,48 @@ int Interface::exec() {
             }
             return 0;
         }
-    } else {
+    } else if (_words[0] == "close") {
+        if (_nWords != 2) {
+            cout << "Comando mal inserido: close AID(3 digits)\n";
+            return 0;
+        }
+        if (!checkAIDFormat(_words[1])) {
+            cout << "Comando mal inserido: close AID(3 digits)\n";
+            return 0;
+        }
+        if (_client == NULL) {
+            cout << "Necessita de estar logged in.\n";
+            return 0;
+        }
+        int n = closea();
+        if (n == -1) {
+            cout << "Deu merda no close!\n";
+            return -1;
+        }
+    } else if (_words[0] == "bid" || _words[0] == "b") {
+        if (_nWords != 3) {
+            cout << "Comando mal inserido: bid AID(3 digits) value(number)\n";
+            return 0;
+        }
+        if (!checkAIDFormat(_words[1])) {
+            cout << "Comando mal inserido: bid AID(3 digits) value(number)\n";
+            return 0;
+        }
+        if (!isNumeric(_words[2])) {
+            cout << "Comando mal inserido: bid AID(3 digits) value(number)\n";
+            return 0;
+        }
+        if (_client == NULL) {
+            cout << "Necessita de estar logged in.\n";
+            return 0;
+        }
+        int n = bid();
+        if (n == -1) {
+            cout << "Deu merda no bid!\n";
+            return -1;
+        }
+    
+    } else{
         cout << "comando invalido!\n";
         return 0;
     }

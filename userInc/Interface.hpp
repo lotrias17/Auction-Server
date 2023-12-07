@@ -32,8 +32,11 @@ class Interface {
         int logout(); // falta ...
         int unregister();
         int myauctions();
+        int mybids();
         int list();
         int open();
+        int closea();
+        int bid();
         int udpBufferProtocol(int sendSize, int rcvSize);
         int tcpBufferProtocol(int sendSize, int rcvSize);
         int _udpfd, _tcpfd, _udperrcode, _tcperrcode;
@@ -52,6 +55,7 @@ class Interface {
         bool isAlphaNumeric(string str);
         bool checkUIDFormat(string str);
         bool checkpasswordFormat(string str);
+        bool checkAIDFormat(string str);
 };
 
 #endif
