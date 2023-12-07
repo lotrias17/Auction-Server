@@ -27,10 +27,12 @@ unordered_map<string, Client*> userList;
 
 void receiveRequest();
 int serverResponse(char* buf);
-bool checkFormat(string format, string str);
-int processLogin(string uid, string password);
 bool isAlphaNumeric(string str);
 bool isNumeric(string str);
+bool checkFormat(string format, string str);
+int processLogin(string uid, string password);
+int processLogout(string uid);
+int processUnregister(string uid);
 
 
 
