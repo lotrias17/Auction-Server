@@ -36,6 +36,7 @@ class Interface {
         int list();
         int open();
         int closea();
+        int showAsset();
         int bid();
         int udpBufferProtocol(int sendSize, int rcvSize);
         int tcpBufferProtocol(int sendSize, int rcvSize);

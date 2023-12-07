@@ -212,12 +212,14 @@ int Interface::tcpBufferProtocol(int sendSize, int rcvSize) {
 
     n = write(_tcpfd, _buffer, sendSize);
     if(n==-1) {
+        close(_tcpfd);
         cerr << "Erro no write(), login()\n";
         exit(1);
     }
 
     n = read(_tcpfd,_buffer,rcvSize);
     if(n==-1) {
+        close(_tcpfd);
         cerr << "Erro no read(), login()\n";
         exit(1);
     }
@@ -663,6 +665,7 @@ int Interface::open() {
 
     n = write(_tcpfd, _buffer, j);
     if(n==-1) {
+        close(_tcpfd);
         cerr << "Erro no write(), login()\n";
         exit(1);
     }
@@ -671,6 +674,7 @@ int Interface::open() {
 
     inFile.open(_words[2].c_str());
     if (!inFile.is_open()) {
+        close(_tcpfd);
         cout << "Ficheiro não encontrado!\n";
         return 0;
     }
@@ -680,20 +684,27 @@ int Interface::open() {
     while (sent < fileSize) {
         inFile.read(_buffer, 8 * 1024);
         read1 = inFile.gcount();
+        cout << "Li: " << read1 << " bytes dos " << fileSize << "\n";
         if (read1 == 0) {
+            inFile.close();
+            close(_tcpfd);
             cout << "Sai por aqui!\n";
             break;
         }
         // cout << "Enviando " << read1 << " bytes: " << _buffer;
         write1 = 0;
-        while (write1 < read1) {
+        while (read1 > 0) {
             write1 = write(_tcpfd, _buffer, read1);
+            cout << "Escrevi: " << write1 << " bytes dos " << read1 << "\n";
             sent += write1;
+            read1 -= write1;
             // cout << "Foram escritos " << sent << " bytes\n";
         }
     }
+    inFile.close();
     n = write(_tcpfd, "\n", 1);
     if (n == -1) {
+        close(_tcpfd);
         cout << "Hmmmmm!\n";
         return 0;
     }
@@ -703,6 +714,7 @@ int Interface::open() {
 
     n = read(_tcpfd, _buffer, 8 * 1024);
     if(n==-1) {
+        close(_tcpfd);
         cerr << "Erro no read(), login()\n";
         exit(1);
     }
@@ -713,9 +725,16 @@ int Interface::open() {
 
     // cout << "Recebi mas n checkei: " << _buffer;
 
+    if (!checkServerAnswer(n, _buffer, "ROA ")) {
+        close(_tcpfd);
+        cout << "O servidor de a resposta errada!\n";
+        return 0;
+    }
+
     if (checkServerAnswer(n - 4, _buffer + 4, "OK ")) {
         // fazer a listagem das auctions
         if (n - 11 != 0) {
+            close(_tcpfd);
             cout << "O servidor deu a resposta errada!\n";
             return 0;
         }
@@ -726,23 +745,29 @@ int Interface::open() {
         number[3] = '\0';
         string jota = number;
         if (!isNumeric(jota)) {
+            close(_tcpfd);
             cout << "Numero da auction mal formatado!\n";
             return 0;
         }
+        close(_tcpfd);
         cout << "Ficou com a auction numero: " << jota << "\n";
         return 0;
     } else if (checkServerAnswer(n - 4, _buffer + 4, "NLG\n")) {
         if (n - 8 != 0) {
+            close(_tcpfd);
             cout << "O servidor deu a resposta errada!\n";
             return 0;
         }
+        close(_tcpfd);
         cout << "utilizador não esta logado ;)\n";
         return 1;
     } else if (checkServerAnswer(n - 4, _buffer + 4, "NOK\n")) {
         if (n - 8 != 0) {
+            close(_tcpfd);
             cout << "O servidor deu a resposta errada!\n";
             return 0;
         }
+        close(_tcpfd);
         cout << "Não foi possivel criar a sua auction.\n";
         return 2;
     }
@@ -815,6 +840,168 @@ int Interface::closea() {
 
     return -1;
 
+}
+
+int Interface::showAsset() {
+
+    memcpy(_buffer, "SAS", 3);
+    memcpy(_buffer + 3, " ", 1);
+    memcpy(_buffer + 4, _words[1].c_str(), 3);
+    memcpy(_buffer + 7, "\n", 1);
+    _buffer[8] = '\0';
+
+    // cout << "Enviei: " << _buffer;
+
+    _tcpfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (_tcpfd == -1) {
+        cerr << "Problema ao criar o socket!\n";
+        exit(1);
+    }
+
+    memset(&_tcphints, 0, sizeof(_tcphints));
+    _tcphints.ai_family=AF_INET;
+    _tcphints.ai_socktype=SOCK_STREAM;
+
+    //cout << "Estou a tentar conectar ao sv: \"" << _server << "\"!\n";
+    //cout << "Ao porto: \"" << (char*)to_string(_port).c_str() << "\"!\n";
+
+    _tcperrcode=getaddrinfo(_server, (char*)to_string(_port).c_str(), &_tcphints, &_tcpres);
+    if(_tcperrcode==-1) {
+        cerr << "Problema no addr info\n";
+        exit(1);
+    }
+    if (!_tcpres) {
+        cerr << "Não foi encontrado o servidor que mencionou!\n";
+        exit(1);
+    }
+
+    int n = 0;
+    n = connect(_tcpfd, _tcpres->ai_addr, _tcpres->ai_addrlen);
+    if (n == -1) {
+        cout << "Problema ao conectar com o servidor (devido ao close ser vagabundo)!\n";
+        exit(1);
+    }
+
+    n = write(_tcpfd, _buffer, 8);
+    if(n==-1) {
+        close(_tcpfd);
+        cerr << "Erro no write(), showAsset()\n";
+        exit(1);
+    }
+
+    // receber merdas
+
+    n = read(_tcpfd, _buffer, 8 * 1024);
+    if(n==-1) {
+        close(_tcpfd);
+        cerr << "Erro no read(), showAsset()\n";
+        exit(1);
+    }
+    // cout << "Lemos " << n << " caracteres!\n";
+    // cout << _buffer;
+    if (!checkServerAnswer(n, _buffer, "RSA ")) {
+        close(_tcpfd);
+        cout << "O servidor de a resposta errada!\n";
+        return 0;
+    }
+    if (checkServerAnswer(n - 4, _buffer + 4, "OK ")) {
+        // file part
+        char fname[128];
+        int pause;
+        int j = 7;
+        if (n == 7) {
+            n = read(_tcpfd, _buffer, 8 * 1024);
+            cout << n << " | " << _buffer;
+            if(n==-1) {
+                close(_tcpfd);
+                cerr << "Erro no read(), login()\n";
+                exit(1);
+            }
+            j = 0;
+        }
+        for (int i = 0; i < 8 * 1024; i++) {
+            if (j + i > n) {
+                close(_tcpfd);
+                cout << "\nFicheiro enviado incorretamente!\n";
+                return 0;
+            }
+            if (_buffer[j + i] == ' ') {
+                pause = j + i;
+                fname[i] = '\0';
+                break;
+            } else {
+                fname[i] = _buffer[j + i];
+            }
+        }
+        pause++;
+        // cout << "Ficheiro Nome: " << fname << "\n";
+        char fsize[128];
+        for (int i = 0; i < 8 * 1024; i++) {
+            if (pause + i > n) {
+                close(_tcpfd);
+                cout << "Ficheiro enviado incorretamente!\n";
+                return 0;
+            }
+            if (_buffer[pause + i] == ' ') {
+                pause += i;
+                fsize[i] = '\0';
+                break;
+            } else {
+                fsize[i] = _buffer[pause + i];
+            }
+        }
+        pause++;
+        // cout << "Ficheiro Tamanho: " << fsize << "\n";
+        string test = fsize;
+        if (!isNumeric(test)) {
+            close(_tcpfd);
+            cout << "Ficheiro enviado incorretamente!\n";
+            return 0;
+        }
+        int size = stoi(fsize);
+
+        // cout << "Comecando no: " << pause << "\n";
+
+        ofstream outFile;
+        outFile.open(fname);
+        if (!outFile.is_open()) {
+            close(_tcpfd);
+            cout << "Ficheiro não criado!\n";
+            outFile.close();
+            return 0;
+        }
+        cout << "Enviando: " << (n - pause) << " bytes\n";
+        cout << "_buffer[pause] = " << _buffer[pause] << "\n";
+        outFile.write((_buffer + pause), (n - pause));
+        size -= (n - pause);
+        while (size > 0) {
+            n = read(_tcpfd, _buffer, 8 * 1024);
+            if (n == -1) {
+                close(_tcpfd);
+                cerr << "Erro no read(), showAsset()\n";
+                exit(1);
+            }
+            outFile.write(_buffer, n);
+            size -= n;
+        }
+        outFile.close();
+        close(_tcpfd);
+        cout << "Ficheiro: " << fname << " recebido corretamente\n";
+        return 0;
+    } else if (checkServerAnswer(n - 4, _buffer + 4, "NOK\n")) {
+        if (n - 8 != 0) {
+            close(_tcpfd);
+            cout << "O servidor deu a resposta errada!\n";
+            return 0;
+        }
+        close(_tcpfd);
+        cout << "Não foi possivel receber o ficheiro da auction.\n";
+        return 0;
+    }
+
+    close(_tcpfd);
+
+    return 0;
 }
 
 int Interface::bid() {
@@ -1066,6 +1253,21 @@ int Interface::exec() {
             cout << "Deu merda no close!\n";
             return -1;
         }
+    } else if (_words[0] == "show_asset" || _words[0] == "sa") {
+        if (_nWords != 2) {
+            cout << "Comando mal inserido: show_asset AID(3 digits)\n";
+            return 0;
+        }
+        if (!checkAIDFormat(_words[1])) {
+            cout << "Comando mal inserido: show_asset AID(3 digits)\n";
+            return 0;
+        }
+        int n = showAsset();
+        if (n == -1) {
+            cout << "Deu merda no show_asset!\n";
+            return -1;
+        }
+    
     } else if (_words[0] == "bid" || _words[0] == "b") {
         if (_nWords != 3) {
             cout << "Comando mal inserido: bid AID(3 digits) value(number)\n";
