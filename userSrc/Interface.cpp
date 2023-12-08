@@ -164,6 +164,24 @@ int Interface::udpBufferProtocol(int sendSize, int rcvSize) {
         exit(1);
     }
 
+    fd_set readfd;
+    struct timeval tv;
+    FD_ZERO(&readfd);
+    FD_SET(_udpfd, &readfd);
+    tv.tv_sec = 3;
+    tv.tv_usec = 0;
+
+    // cout << "fiz o select!\n";
+    int j = select(_udpfd + 1, &readfd, NULL, NULL, &tv);
+    // cout << "j: " << j << "\n";
+    if (j == -1) {
+        cout << "Erro no select()\n";
+        exit(1);
+    } else if (j == 0) {
+        cout << "Servidor demorou a responder!\n";
+        return -1;
+    }
+
     _addrlen=sizeof(_addr);
     n=recvfrom(_udpfd,_buffer,rcvSize,0,(struct sockaddr*)&_addr,&_addrlen);
     
@@ -175,6 +193,7 @@ int Interface::udpBufferProtocol(int sendSize, int rcvSize) {
         return n;
     }
     _buffer[n] = '\0';
+    // cout << _buffer << "\n";
     return n;
 }
 
@@ -217,6 +236,25 @@ int Interface::tcpBufferProtocol(int sendSize, int rcvSize) {
         exit(1);
     }
 
+    fd_set readfd;
+    struct timeval tv;
+    FD_ZERO(&readfd);
+    FD_SET(_tcpfd, &readfd);
+    tv.tv_sec = 3;
+    tv.tv_usec = 0;
+
+    // cout << "fiz o select!\n";
+    int j = select(_tcpfd + 1, &readfd, NULL, NULL, &tv);
+    // cout << "j: " << j << "\n";
+    if (j == -1) {
+        cout << "Erro no select()\n";
+        exit(1);
+    } else if (j == 0) {
+        cout << "Servidor demorou a responder!\n";
+        return -1;
+    }
+
+
     n = read(_tcpfd,_buffer,rcvSize);
     if(n==-1) {
         close(_tcpfd);
@@ -244,6 +282,9 @@ int Interface::login() {
     // cout << "Eu enviei: " << _buffer; // serve para checkar o que se enviou
 
     int n = udpBufferProtocol(20, 128);
+    if (n == -1) {
+        return 10;
+    }
 
     // cout << "Eu recebi mas n checkei: " << _buffer; // serve para checkar o q se recebeu
 
@@ -291,6 +332,9 @@ int Interface::logout() {
     // cout << "Eu enviei: " << _buffer; // serve para ter acerteza do que foi enviado
 
     int n = udpBufferProtocol(20, 128);
+    if (n == -1) {
+        return 10;
+    }
 
     // cout << "Eu recebi mas n checkei: " << _buffer; // server para checkar o input
 
@@ -340,6 +384,9 @@ int Interface::unregister() {
     // cout << "Eu enviei: " << _buffer; // serve para ter acerteza do que foi enviado
 
     int n = udpBufferProtocol(20, 128);
+    if (n == -1) {
+        return 10;
+    }
 
     // cout << "Eu recebi mas n checkei: " << _buffer; // serve para checkar o q se recebeu
 
@@ -387,6 +434,9 @@ int Interface::myauctions() {
     // cout << "Eu enviei: " << _buffer; // serve para ter acerteza do que foi enviado
 
     int n = udpBufferProtocol(11, 8 * 1024);
+    if (n == -1) {
+        return 0;
+    }
 
     // cout << "Eu recebi mas n checkei: " << _buffer; // serve para checkar o q se recebeu
 
@@ -460,6 +510,9 @@ int Interface::mybids() {
     // cout << "Eu enviei: " << _buffer; // serve para ter acerteza do que foi enviado
 
     int n = udpBufferProtocol(11, 8 * 1024);
+    if (n == -1) {
+        return 0;
+    }
 
     // cout << "Eu recebi mas n checkei: " << _buffer; // serve para checkar o q se recebeu
 
@@ -531,6 +584,9 @@ int Interface::list() {
     // cout << "Eu enviei: " << _buffer; // serve para checkar o que se enviou
 
     int n = udpBufferProtocol(4, 8 * 1024);
+    if (n == -1) {
+        return 0;
+    }
 
     // cout << "Eu recebi mas n checkei: " << _buffer; // serve para checkar o q se recebeu
 
@@ -581,6 +637,249 @@ int Interface::list() {
         }
         cout << "Nenhuma auction iniciada.\n";
         return 1;
+    }
+
+    cout << "O servidor deu a resposta errada!\n";
+
+    return -1;
+}
+
+int Interface::printBid(int n, int i) {
+    int l = i;
+    i += 2;
+    if (i > n) {
+        cout << "Resposta do servidor mal formatada!\n";
+        return 0;
+    }
+    if (i + 7 > n) {
+        cout << "Resposta do servidor mal formatada!\n";
+        return 0;
+    }
+    char uid[7];
+    for (int k = 0; k < 6; k++) {
+        uid[k] = _buffer[i + k];
+    }
+    uid[6] = '\0';
+    i += 7;
+    cout << "O utilizador " << uid;
+
+    char bidvalue[128];
+    for (int k = 0; k < 8 * 1024; k++) {
+        if (n < i + k + 1) {
+            cout << "Resposta do servidor mal formatada!\n";
+            return 0;
+        }
+        if (_buffer[i + k] == ' ') {
+            bidvalue[k] = '\0';
+            i += k + 1;
+            break;
+        }
+        bidvalue[k] = _buffer[i + k];
+    }
+    cout << " deu bid com o valor " << bidvalue;
+
+    if (i + 20 > n) {
+        cout << "Resposta do servidor mal formatada!\n";
+        return 0;
+    }
+    char bDate[20];
+    for (int k = 0; k < 19; k++) {
+        bDate[k] = _buffer[i + k];
+    }
+    bDate[19] = '\0';
+    i += 20;
+
+    cout << " as " << bDate;
+
+    char endtimeactive[128];
+    for (int k = 0; k < 8 * 1024; k++) {
+        if (n < i + k + 1) {
+            cout << "Resposta do servidor mal formatada!\n";
+            return 0;
+        }
+        if (_buffer[i + k] == ' ') {
+            endtimeactive[k] = '\0';
+            i += k + 1;
+            break;
+        }
+        endtimeactive[k] = _buffer[i + k];
+    }
+    cout << ", " << atoi(endtimeactive) << " segundos apos o inicio da auction!\n";
+    return (i - l - 1);
+
+}
+
+int Interface::showRecord() {
+    memcpy(_buffer, "SRC", 3);
+    memcpy(_buffer + 3, " ", 1);
+    memcpy(_buffer + 4, _words[1].c_str(), 3);
+    memcpy(_buffer + 7, "\n", 1);
+    _buffer[8] = '\0';
+    // cout << "Eu enviei: " << _buffer; // serve para ter acerteza do que foi enviado
+
+    int n = udpBufferProtocol(8, 8 * 1024);
+    if (n == -1) {
+        return 0;
+    }
+
+    // cout << "Eu recebi mas n checkei: " << _buffer; // serve para checkar o q se recebeu
+
+    if (!checkServerAnswer(n, _buffer, "RRC ")) {
+        cout << "O servidor deu a resposta errada!\n";
+        return -1;
+    }
+
+    if (checkServerAnswer(n - 4, _buffer + 4, "OK ")) {
+        // cout << "LIstagem do record!.\n";
+        // cout << (_buffer + 7); // checkar o output!
+        int pos = 7;
+        char uid[7];
+        if (pos + 7 < n) {
+            for (int i = 0; i < 6; i++) {
+                uid[i] = _buffer[pos + i];
+            }
+            uid[6] = '\0';
+        } else {
+            cout << "Resposta do servidor mal formatada!\n";
+            return 0;
+        }
+        string hihi = uid;
+        cout << "O utilizador " << uid;
+        if (!isNumeric(hihi)) {
+            cout << "Uid mal enviado!\n";
+            return 0;
+        }
+        pos += 7;
+
+        char name[128];
+        for (int i = 0; i < 8 * 1024; i++) {
+            if (n < pos + i + 1) {
+                cout << "Resposta do servidor mal formatada!\n";
+                return 0;
+            }
+            if (_buffer[pos + i] == ' ') {
+                name[i] = '\0';
+                pos += i + 1;
+                break;
+            }
+            name[i] = _buffer[pos + i];
+        }
+        cout << " vende " << name;
+
+        char fname[128];
+        for (int i = 0; i < 8 * 1024; i++) {
+            if (n < pos + i + 1) {
+                cout << "Resposta do servidor mal formatada!\n";
+                return 0;
+            }
+            if (_buffer[pos + i] == ' ') {
+                fname[i] = '\0';
+                pos += i + 1;
+                break;
+            }
+            fname[i] = _buffer[pos + i];
+        }
+        cout << " com a imagem " << fname;
+
+        char startvalue[128];
+        for (int i = 0; i < 8 * 1024; i++) {
+            if (n < pos + i + 1) {
+                cout << "Resposta do servidor mal formatada!\n";
+                return 0;
+            }
+            if (_buffer[pos + i] == ' ') {
+                startvalue[i] = '\0';
+                pos += i + 1;
+                break;
+            }
+            startvalue[i] = _buffer[pos + i];
+        }
+        cout << " com um valor inicial de " << startvalue;
+
+        char startDate[128];
+        if (pos + 20 > n) {
+            cout << "Resposta do servidor mal formatada!\n";
+            return 0;
+        }
+        for (int i = 0; i < 19; i++) {
+            startDate[i] = _buffer[pos + i];
+        }
+        startDate[19] = '\0';
+        pos += 20;
+        cout << " e criado as " << startDate;
+
+        char timeactive[128];
+        for (int i = 0; i < 8 * 1024; i++) {
+            if (n < pos + i + 1) {
+                cout << "Resposta do servidor mal formatada!\n";
+                return 0;
+            }
+            if (_buffer[pos + i] == ' ') {
+                timeactive[i] = '\0';
+                pos += i + 1;
+                break;
+            }
+            timeactive[i] = _buffer[pos + i];
+        }
+        cout << " e esta/esteve ativa durante " << atoi(timeactive) << " segundos \n";
+
+        // biding part!!!!
+        // cout << "O resto do buffer: " << (_buffer + pos) << "\n";
+
+        for (int i = pos; i < 8 *1024; i++) {
+            if (n < i) {
+                cout << "Resposta do servidor mal formatada!\n";
+                return 0;
+            }
+            if (_buffer[i] == 'B') {
+                int j = printBid(n, i);
+                if (j == -1) {
+                    return 0;
+                }
+                i += j;
+                // cout << "O resto do buffer after bid: " << _buffer + i; 
+                continue;
+            }
+            if (_buffer[i] == 'E') {
+                char endDate[128];
+                (void) endDate;
+                if (i + 20 > n) {
+                    cout << "Resposta do servidor mal formatada!\n";
+                    return 0;
+                }
+                for (int j = 0; j < 19; j++) {
+                    endDate[j] = _buffer[i + j];
+                }
+                endDate[19] = '\0';
+                i += 20;
+                cout << "A auction acabou as " << startDate;
+
+                char endtimeactive[128];
+                for (int k = 0; k < 8 * 1024; k++) {
+                    if (n < i + k + 1) {
+                        cout << "Resposta do servidor mal formatada!\n";
+                        return 0;
+                    }
+                    if (_buffer[i + k] == ' ') {
+                        endtimeactive[k] = '\0';
+                        i += k + 1;
+                        break;
+                    }
+                    endtimeactive[k] = _buffer[i + k];
+                }
+                cout << " e acabou apos " << atoi(endtimeactive) << " segundos \n";
+                return 0;
+            }
+        }
+
+        return 0;
+    } else if (checkServerAnswer(n - 4, _buffer + 4, "NOK\n")) {
+        if (n - 8 != 0) {
+            cout << "O servidor deu a resposta errada!\n";
+            return -1;
+        }
+        cout << "Não existe nenhuma auction com esse numero.\n";
+        return 0;
     }
 
     cout << "O servidor deu a resposta errada!\n";
@@ -711,6 +1010,24 @@ int Interface::open() {
     // cout << "All data sent!\n";
 
     // receber merdas
+
+    fd_set readfd;
+    struct timeval tv;
+    FD_ZERO(&readfd);
+    FD_SET(_udpfd, &readfd);
+    tv.tv_sec = 3;
+    tv.tv_usec = 0;
+
+    // cout << "fiz o select!\n";
+    int u = select(_udpfd + 1, &readfd, NULL, NULL, &tv);
+    // cout << "j: " << j << "\n";
+    if (u == -1) {
+        cout << "Erro no select()\n";
+        exit(1);
+    } else if (u == 0) {
+        cout << "Servidor demorou a responder!\n";
+        return -1;
+    }
 
     n = read(_tcpfd, _buffer, 8 * 1024);
     if(n==-1) {
@@ -891,6 +1208,24 @@ int Interface::showAsset() {
 
     // receber merdas
 
+    fd_set readfd;
+    struct timeval tv;
+    FD_ZERO(&readfd);
+    FD_SET(_tcpfd, &readfd);
+    tv.tv_sec = 10;
+    tv.tv_usec = 0;
+
+    // cout << "fiz o select!\n";
+    int j = select(_tcpfd + 1, &readfd, NULL, NULL, &tv);
+    // cout << "j: " << j << "\n";
+    if (j == -1) {
+        cout << "Erro no select()\n";
+        exit(1);
+    } else if (j == 0) {
+        cout << "Servidor demorou a responder!\n";
+        return -1;
+    }
+
     n = read(_tcpfd, _buffer, 8 * 1024);
     if(n==-1) {
         close(_tcpfd);
@@ -910,8 +1245,25 @@ int Interface::showAsset() {
         int pause;
         int j = 7;
         if (n == 7) {
+            fd_set readfd;
+            struct timeval tv;
+            FD_ZERO(&readfd);
+            FD_SET(_tcpfd, &readfd);
+            tv.tv_sec = 10;
+            tv.tv_usec = 0;
+
+            // cout << "fiz o select!\n";
+            int u = select(_tcpfd + 1, &readfd, NULL, NULL, &tv);
+            // cout << "j: " << j << "\n";
+            if (u == -1) {
+                cout << "Erro no select()\n";
+                exit(1);
+            } else if (u == 0) {
+                cout << "Servidor demorou a responder!\n";
+                return -1;
+            }
             n = read(_tcpfd, _buffer, 8 * 1024);
-            cout << n << " | " << _buffer;
+            // cout << n << " | " << _buffer;
             if(n==-1) {
                 close(_tcpfd);
                 cerr << "Erro no read(), login()\n";
@@ -970,11 +1322,28 @@ int Interface::showAsset() {
             outFile.close();
             return 0;
         }
-        cout << "Enviando: " << (n - pause) << " bytes\n";
-        cout << "_buffer[pause] = " << _buffer[pause] << "\n";
+        // cout << "Enviando: " << (n - pause) << " bytes\n";
+        // cout << "_buffer[pause] = " << _buffer[pause] << "\n";
         outFile.write((_buffer + pause), (n - pause));
         size -= (n - pause);
         while (size > 0) {
+            fd_set readfd;
+            struct timeval tv;
+            FD_ZERO(&readfd);
+            FD_SET(_tcpfd, &readfd);
+            tv.tv_sec = 10;
+            tv.tv_usec = 0;
+
+            // cout << "fiz o select!\n";
+            int u = select(_tcpfd + 1, &readfd, NULL, NULL, &tv);
+            // cout << "j: " << j << "\n";
+            if (u == -1) {
+                cout << "Erro no select()\n";
+                exit(1);
+            } else if (u == 0) {
+                cout << "Servidor demorou a responder!\n";
+                return -1;
+            }
             n = read(_tcpfd, _buffer, 8 * 1024);
             if (n == -1) {
                 close(_tcpfd);
@@ -1210,6 +1579,21 @@ int Interface::exec() {
             }
             return 0;
         }
+    } else if (_words[0] == "show_record" || _words[0] == "sr") {
+        if (_nWords != 2) {
+            cout << "Comando mal inserido: show_asset AID(3 digits)\n";
+            return 0;
+        }
+        if (!checkAIDFormat(_words[1])) {
+            cout << "Comando mal inserido: show_asset AID(3 digits)\n";
+            return 0;
+        }
+        int n = showRecord();
+        if (n == -1) {
+            cout << "Deu merda no show_asset!\n";
+            return -1;
+        }
+    
     } else if (_words[0] == "open") {
         if (_nWords != 5) {
             cout << "Comando mal inserido: open name asset_fname start_value time_active";

@@ -34,6 +34,8 @@ class Interface {
         int myauctions();
         int mybids();
         int list();
+        int showRecord();
+        int printBid(int n, int i);
         int open();
         int closea();
         int showAsset();
