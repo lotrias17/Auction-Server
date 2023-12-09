@@ -1,8 +1,6 @@
 #ifndef AS_HPP
 #define AS_HPP
 
-#include "../userSrc/Client.cpp"
-
 #include <unordered_map>
 #include <vector>
 #include <cstring>
@@ -14,18 +12,29 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include <netdb.h>
-#define PORT "58011"    //should be 58000 + Group Number
+#include <netdb.h>  
 
+#include "../userSrc/Client.cpp"
+
+#include "Auction.hpp"
+#include "database.hpp"
+
+using namespace std;
+
+int port = 58011;   //should be 58000 + Group Number
 int fd,errcode;
+int aid = 0;
 ssize_t n;
 socklen_t addrlen;
 struct addrinfo hints,*res;
 struct sockaddr_in addr;
 char buffer[128];
+bool verbose = false;
 unordered_map<string, Client*> userList;
 
+
 void receiveRequest();
+bool checkPORTFormat(char* str);
 int serverResponse(char* buf);
 bool isAlphaNumeric(string str);
 bool isNumeric(string str);

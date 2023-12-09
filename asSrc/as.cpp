@@ -1,6 +1,13 @@
 #include "../asInc/AS.hpp"
+//#include "database.cpp"
 
-using namespace std;
+bool checkPORTFormat(char* str) {
+    for(int i = 0; i < 5; i++) {
+        if (!isdigit(str[i]))
+            return false;
+    }
+    return stoi(str) < 65536;
+}
 
 bool isNumeric(string str) {
     int size = (int) str.size();
@@ -22,9 +29,13 @@ bool isAlphaNumeric(string str) {
     return true;
 }
 
-void receiveRequest() {
-    string s;
+bool checkFormat(string format, string str) {
+    if (format == "uid") return str.size() == 6 && isNumeric(str); 
+    else if (format == "password") return str.size() == 8 && isAlphaNumeric(str);
+    else return false;
+}
 
+void receiveRequest() {
     fd=socket(AF_INET, SOCK_DGRAM, 0);
     if (fd == -1) {
         cerr << "Problema no socket UDP.\n";
@@ -36,7 +47,10 @@ void receiveRequest() {
     hints.ai_socktype = SOCK_DGRAM;
     hints.ai_flags = AI_PASSIVE;
 
-    errcode=getaddrinfo(NULL, PORT, &hints, &res);
+    char p[8];
+    strcpy(p, to_string(port).c_str());
+
+    errcode=getaddrinfo(NULL, p, &hints, &res);
     if (errcode != 0) {
         cerr << "Problema no getaddrinfo.\n";
         exit(1);
@@ -125,9 +139,7 @@ int processLogin(string uid, string password) {
     }
 
     if (userList.find(uid) == userList.end()) {  //unregistered
-        Client* c = new Client(uid, password);
-        c->_status = "logged in";
-        userList.insert({uid, c});
+        int n = addUser(uid, password);
         cout << "Registered User: " << uid << '\n';
 
         // Maybe just put this sendto into a func: udpSend/udpRcv
@@ -232,17 +244,56 @@ int processUnregister(string uid) {
 
 
 
-bool checkFormat(string format, string str) {
-    if (format == "uid") return str.size() == 6 && isNumeric(str); 
-    else if (format == "password") return str.size() == 8 && isAlphaNumeric(str);
-    else return false;
-}
+int main(int argc, char** argv) {
 
-
-
-
-int main() {
     cout << "Ola meu servidor!\n";
+
+    // handle arguments
+
+    bool args[2];
+    int portNumber;
+    string check;
+    args[0] = false; // isto e o arg p
+    args[1] = false; // isto e o arg v
+    
+    if (argc != 1 && argc != 3 && argc != 4) {
+        cerr << "Numero errado de argumentos!\n";
+        exit(1);
+    }
+
+    // loop to get every arg
+    for (int i = 1; i < argc; i++) {
+        check = argv[i];
+        //cout << "CHECK: " << check << '\n';
+        if (check == "-p") {
+            if (args[0] == true) {
+                cout << "Argumento repetido!\n";
+                exit(1);
+            } else {
+                if (checkPORTFormat(argv[i + 1])) {
+                    portNumber = stoi(argv[i + 1]);
+                    args[0] = true;
+                    i++;
+                } else {
+                    cerr << "Formato do PORT esta errado\n";
+                    exit(1);
+                }
+            }
+        } else if (check == "-v") {
+            if (args[1] == true) {
+                cout << "Argumento repetido!\n";
+                exit(1);
+            } else {
+                args[1] = true;
+            }
+        } else {
+            cerr << "flag invalida\n";
+            exit(1);
+        }
+    }
+
+    if (args[1]) verbose = true;
+    if (args[0]) port = portNumber;
 
     receiveRequest();
 
