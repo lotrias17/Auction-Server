@@ -6,16 +6,22 @@
 #include <iostream>
 #include <sys/stat.h>
 #include <string>
+#include <stdio.h>
+#include <iostream>
+#include <fcntl.h>
+
+#include "../userInc/Client.hpp"
 
 using namespace std;
 
-int emptyDir(string path);
 
 int addUser(string uid, string password);
-int deleteUser(string uid);
-//int getUser();
-//int loginUser(string uid, string password)
-//int logoutUser(string uid)
+int unregisterUser(string uid);
+int loginUser(string uid, string password);
+int logoutUser(string uid);
+int checkUserRegistry(string uid);
+Client getUser(string uid);
+int setUser(Client c);
 
 //int addAuction();
 //int deleteAuction();
