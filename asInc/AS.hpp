@@ -22,26 +22,39 @@
 using namespace std;
 
 int port = 58011;   //should be 58000 + Group Number
-int fd,errcode;
+int ufd, tfd, udpErrcode, tcpErrcode, outFds;
 int aid = 0;
 ssize_t n;
 socklen_t addrlen;
-struct addrinfo hints,*res;
-struct sockaddr_in addr;
+struct addrinfo uhints,*ures, thints, *tres;
+struct sockaddr_in udpAddr, tcpAddr;
 char buffer[128];
 bool verbose = false;
 unordered_map<string, Client*> userList;
+fd_set inputs, testFds;
 
-
+void verboseOut(string request, string protocol);
+void setUdpSocket(char* p);
+void setTcpSocket(char* p);
 void receiveRequest();
 bool checkPORTFormat(char* str);
-int serverResponse(char* buf);
+int serverResponse(char* buffer, string protocol);
 bool isAlphaNumeric(string str);
 bool isNumeric(string str);
 bool checkFormat(string format, string str);
+
 int processLogin(string uid, string password);
 int processLogout(string uid);
 int processUnregister(string uid);
+int processListMyAuctions(string uid);
+int processListMyBids(string uid);
+int processList();
+int show_record();
+
+int processOpen();
+int processClose();
+int processBid();
+int processShowAsset();
 
 
 

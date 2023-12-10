@@ -24,10 +24,7 @@ Client getUser(string uid) {
     char password[9];
     int reg = checkUserRegistry(uid);
 
-    if (reg != 0) {   //unregistered user
-        cout << reg << '\n';
-        return Client(uid, "unr");
-    }
+    if (reg != 0) return Client(uid, "unr");    //unregistered user
 
     string status = "logged in";
 
