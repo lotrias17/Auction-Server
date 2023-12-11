@@ -16,14 +16,12 @@
 
 #include "../userSrc/Client.cpp"
 
-#include "Auction.hpp"
 #include "database.hpp"
 
 using namespace std;
 
 int port = 58011;   //should be 58000 + Group Number
 int ufd, tfd, udpErrcode, tcpErrcode, outFds;
-int aid = 0;
 ssize_t n;
 socklen_t addrlen;
 struct addrinfo uhints,*ures, thints, *tres;
@@ -50,7 +48,7 @@ int processListMyBids(string uid);
 int processList();
 int show_record();
 
-int processOpen();
+int processOpen(vector<string> input);
 int processClose();
 int processBid();
 int processShowAsset();

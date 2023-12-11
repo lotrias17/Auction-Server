@@ -926,11 +926,14 @@ int Interface::open() {
     int fileSize = inFile.tellg();
     inFile.close();
     string size = to_string(fileSize);
+    
+    /*
     memcpy(_buffer + j, size.c_str(), size.size());
     j += size.size();
     memcpy(_buffer + j, " ", 1);
     j++;
     _buffer[j] = '\0';
+    */
 
     _tcpfd = socket(AF_INET, SOCK_STREAM, 0);
     if (_tcpfd == -1) {
@@ -978,6 +981,9 @@ int Interface::open() {
         return 0;
     }
 
+    //sendFile() -> filesize, open file, 1st sendBuffer() to check if it works?
+        //while(filesize != 0) {read chunk, sendBuffer(chunk)}
+
     int read1, write1;
     int sent = 0;
     while (sent < fileSize) {
@@ -999,6 +1005,7 @@ int Interface::open() {
             read1 -= write1;
             // cout << "Foram escritos " << sent << " bytes\n";
         }
+        cout << "Faltam " << to_string(fileSize-sent) << " bytes.\n";
     }
     inFile.close();
     n = write(_tcpfd, "\n", 1);
@@ -1007,7 +1014,7 @@ int Interface::open() {
         cout << "Hmmmmm!\n";
         return 0;
     }
-    // cout << "All data sent!\n";
+    cout << "All data sent!\n";
 
     // receber merdas
 

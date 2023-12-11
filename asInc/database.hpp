@@ -17,6 +17,8 @@
 
 using namespace std;
 
+int aid = 0;
+
 int addUser(string uid, string password);
 int unregisterUser(string uid);
 int loginUser(string uid, string password);

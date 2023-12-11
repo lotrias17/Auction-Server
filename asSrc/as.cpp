@@ -171,13 +171,19 @@ void receiveRequest() {
                     if ((newfd = accept(tfd, (struct sockaddr*) &tcpAddr, &addrlen)) == -1) perror("accept");
 
                     n = read(newfd, buffer, 128);
-                    if (n == -1) exit(1);
-
+                    if (n == -1) {
+                        if (read(newfd, buffer, 8388608) == -1) exit(1);
+                    }
+                    if (serverResponse(buffer, "tcp") == -1) {
+                        //cerr << "Problema ao processar request.\n";
+                        if (write(newfd, "ERR\n", 4) == -1) perror("tcp write");
+                    }
+                    /*
                     write(1, "received: ", 10); write(1, buffer, n);
 
                     // response is handled by specific functions: serverResponse()
                     n = write(newfd, buffer, n);
-                    if (n == -1) exit(1);
+                    if (n == -1) exit(1);*/
                     close(newfd);
                 }
         }
@@ -198,10 +204,13 @@ int serverResponse(char* buffer, string protocol) {
     stringstream buf;
     buf << buffer;
 
+    cout << "Buffer:";
     while(getline(buf, s, ' ')) {
         input.push_back(s);
         n++;
+        cout << " " << s;
     }
+    cout << ":\n";
     input[n-1].pop_back();
     
     if (input[0] == "LIN") {    //UDP
@@ -241,7 +250,7 @@ int serverResponse(char* buffer, string protocol) {
             return -1;
         }
     } else if (input[0] == "OPA") {     //TCP
-        if ((n = processListMyAuctions(input[1])) == -1) {
+        if ((n = processOpen(input)) == -1) {
             cerr << "Problema a processar LMA.\n";
             return -1;
         }
@@ -465,7 +474,48 @@ int processList() {
 
 // TCP functions ------------------------------------
 
-//int processOpen() {}
+int processOpen(vector<string> input) {
+    string uid = input[1];
+    string password = input[2];
+    string name = input[3];
+    string startValue = input[4];
+    string timeActive = input[5];
+    string Fname = input[6];
+    string Fsize = input[7];
+    string Fdata = input[8];
+
+    //check uid, password
+    if (!checkFormat("uid", uid) || !checkFormat("password", password)) {
+        cerr << "Poorly formatted request.\n";
+        return -1;
+    }
+
+    //check name, startValue, timeactive
+    if (!isAlphaNumeric(name) || name.length() > 10) {
+        //cout << "O nome do produto tem de ser menor que 10 characteres!\n";
+        cerr << "Poorly formatted request.\n";
+        return -1;
+    } else if (!isNumeric(startValue) || startValue.length() > 6) {
+        //cout << "O start value tem que ser um numero inferior a 10^7!\n";
+        cerr << "Poorly formatted request.\n";
+        return -1;
+    } else if (!isNumeric(timeActive) || timeActive.length() > 5) {
+        //cout << "O time dever ser um numero inferor a 10^6!\n";
+        cerr << "Poorly formatted request.\n";
+        return -1;
+    }
+
+    //check Fname, Fsize, Fdata
+
+    //addAuction()      //create auction, update database
+
+    //ROA NOK if auction could not be started
+    //ROA NLG if uid is not logged in
+    //ROA OK, send AID of created auction
+
+    return 0;
+}
+
 //int processClose() {}
 //int processBid() {}
 //int processShowAsset() {}
