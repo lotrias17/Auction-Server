@@ -1,8 +1,6 @@
 #ifndef AS_HPP
 #define AS_HPP
 
-#include "../userSrc/Client.cpp"
-
 #include <unordered_map>
 #include <vector>
 #include <cstring>
@@ -14,25 +12,46 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include <netdb.h>
-#define PORT "58011"    //should be 58000 + Group Number
+#include <netdb.h>  
 
-int fd,errcode;
+#include "../userSrc/Client.cpp"
+
+#include "database.hpp"
+
+using namespace std;
+
+int port = 58011;   //should be 58000 + Group Number
+int ufd, tfd, udpErrcode, tcpErrcode, outFds;
 ssize_t n;
 socklen_t addrlen;
-struct addrinfo hints,*res;
-struct sockaddr_in addr;
-char buffer[128];
+struct addrinfo uhints,*ures, thints, *tres;
+struct sockaddr_in udpAddr, tcpAddr;
+bool verbose = false;
 unordered_map<string, Client*> userList;
+fd_set inputs, testFds;
 
+void verboseOut(vector<string> input, string protocol);
+void setUdpSocket(char* p);
+void setTcpSocket(char* p);
 void receiveRequest();
-int serverResponse(char* buf);
+bool checkPORTFormat(char* str);
+int serverResponse(char* buffer, string protocol);
 bool isAlphaNumeric(string str);
 bool isNumeric(string str);
 bool checkFormat(string format, string str);
+
 int processLogin(string uid, string password);
 int processLogout(string uid);
 int processUnregister(string uid);
+int processListMyAuctions(string uid);
+int processListMyBids(string uid);
+int processList();
+int show_record();
+
+int processOpen(vector<string> input);
+int processClose();
+int processBid();
+int processShowAsset();
 
 
 
