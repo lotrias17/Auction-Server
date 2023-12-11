@@ -1,5 +1,6 @@
 #include "../asInc/Auction.hpp"
 
+/*
 Auction::Auction(string name, int stvl, int dur, int uid) {
     _name = name;
     _startValue = stvl;
@@ -26,3 +27,4 @@ string Auction::toString() {
 string Auction::simpleToString() {
     return _aid + " " + to_string(_state);
 }
+*/

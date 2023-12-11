@@ -28,12 +28,11 @@ ssize_t n;
 socklen_t addrlen;
 struct addrinfo uhints,*ures, thints, *tres;
 struct sockaddr_in udpAddr, tcpAddr;
-char buffer[128];
 bool verbose = false;
 unordered_map<string, Client*> userList;
 fd_set inputs, testFds;
 
-void verboseOut(string request, string protocol);
+void verboseOut(vector<string> input, string protocol);
 void setUdpSocket(char* p);
 void setTcpSocket(char* p);
 void receiveRequest();

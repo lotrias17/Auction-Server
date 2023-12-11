@@ -29,6 +29,7 @@ bool isAlphaNumeric(string str) {
 }
 
 bool checkFormat(string format, string str) {
+    //cout << "INPUT: " << str << ": " << str.size()  << " \n";
     if (format == "uid") return str.size() == 6 && isNumeric(str); 
     else if (format == "password") return str.size() == 8 && isAlphaNumeric(str);
     else return false;
@@ -36,7 +37,9 @@ bool checkFormat(string format, string str) {
 
 //UID, type of request, IP, Port
 void verboseOut(vector<string> input, string protocol) {    //output quando em modo verbose
-    char host[NI_MAXHOST], service[NI_MAXSERV];
+    //char host[NI_MAXHOST], service[NI_MAXSERV];
+    char *ip;
+    int prt;
     cout << "\n-------------Received-------------\n";
     if (protocol == "udp") {       //UDP request
         if (input[0] == "LIN") cout << "Login UID: " << input[1] << '\n';
@@ -48,15 +51,14 @@ void verboseOut(vector<string> input, string protocol) {    //output quando em m
         else if (input[0] == "SRC") cout << "Show Record AID: " << input[1] << '\n';
         else cout << "Unknown Command.\n";
 
-        char *ip = inet_ntoa(udpAddr.sin_addr);
-        int prt = udpAddr.sin_port;
+        ip = inet_ntoa(udpAddr.sin_addr);
+        prt = udpAddr.sin_port;
         printf("IP: %s *** PORT: %d\n",ip,prt);
 
     } else {    //TCP request
-        printf("---TCP socket: %s\n",buffer);
-        tcpErrcode=getnameinfo( (struct sockaddr *) &tcpAddr,addrlen,host,sizeof(host), service,sizeof service,0);
-        if(tcpErrcode==0) printf("       Sent by [%s:%s]\n",host,service);
-        else cout << "Erro em verbose TCP.\n";
+        ip = inet_ntoa(tcpAddr.sin_addr);
+        prt = tcpAddr.sin_port;
+        printf("IP: %s *** PORT: %d\n",ip,prt);
     }
     cout << "----------------------------------\n";
     return;
@@ -112,6 +114,7 @@ void setTcpSocket(char* p) {
 }
 
 void receiveRequest() {
+    char buffer[128];
     char in_str[128];
     struct timeval timeout;
 
@@ -149,6 +152,7 @@ void receiveRequest() {
                     printf("---Input at keyboard: %s\n",in_str);
                 } else if (FD_ISSET(ufd, &testFds)) {
                     addrlen = sizeof(udpAddr);
+                    memset(buffer, 0, sizeof buffer);
                     n=recvfrom(ufd,buffer,128,0,(struct sockaddr*) &udpAddr, &addrlen);
                     if (n==-1) cout << "Problema no recvfrom.\n";
                     else {
@@ -201,37 +205,57 @@ int serverResponse(char* buffer, string protocol) {
     input[n-1].pop_back();
     
     if (input[0] == "LIN") {    //UDP
-        if ((n = processLogin(input[1], input[2])) == -1) {
+        if ((processLogin(input[1], input[2])) == -1) {
             cerr << "Problema a processar login.\n";
             return -1;
         } 
     } else if (input[0] == "LOU") {     //UDP
-        if ((n = processLogout(input[1])) == -1) {
+        if ((processLogout(input[1])) == -1) {
             cerr << "Problema a processar logout.\n";
             return -1;
         }
     } else if (input[0] == "UNR") {     //UDP
-        if (verbose) verboseOut(input, "udp");
-        if ((n = processUnregister(input[1])) == -1) {
-            cerr << "Problema a processar logout.\n";
+        if ((processUnregister(input[1])) == -1) {
+            cerr << "Problema a processar unregister.\n";
             return -1;
         }
     } else if (input[0] == "LMA") {     //UDP
-        if ((n = processListMyAuctions(input[1])) == -1) {
+        if ((processListMyAuctions(input[1])) == -1) {
+            
             cerr << "Problema a processar LMA.\n";
             return -1;
         }
     } else if (input[0] == "LMB") {     //UDP
-        if ((n = processListMyAuctions(input[1])) == -1) {
-            cerr << "Problema a processar LMA.\n";
+        if ((processListMyBids(input[1])) == -1) {
+            cerr << "Problema a processar LMB.\n";
             return -1;
         }
     } else if (input[0] == "LST") {     //UDP
+        if ((processList()) == -1) {
+            cerr << "Problema a processar LST.\n";
+            return -1;
+        }
+    } else if (input[0] == "SRC") {     //UDP
         if ((n = processListMyAuctions(input[1])) == -1) {
             cerr << "Problema a processar LMA.\n";
             return -1;
         }
-    } else if (input[0] == "SRC") {     //UDP
+    } else if (input[0] == "OPA") {     //TCP
+        if ((n = processListMyAuctions(input[1])) == -1) {
+            cerr << "Problema a processar LMA.\n";
+            return -1;
+        }
+    } else if (input[0] == "CLS") {     //TCP
+        if ((n = processListMyAuctions(input[1])) == -1) {
+            cerr << "Problema a processar LMA.\n";
+            return -1;
+        }
+    } else if (input[0] == "SAS") {     //TCP
+        if ((n = processListMyAuctions(input[1])) == -1) {
+            cerr << "Problema a processar LMA.\n";
+            return -1;
+        }
+    } else if (input[0] == "BID") {     //TCP
         if ((n = processListMyAuctions(input[1])) == -1) {
             cerr << "Problema a processar LMA.\n";
             return -1;
@@ -250,7 +274,7 @@ int serverResponse(char* buffer, string protocol) {
 
 int processLogin(string uid, string password) {
     int status = 0;
-
+    
     if (!checkFormat("uid", uid) || !checkFormat("password", password)) {
         cerr << "Poorly formatted request.\n";
         return -1;
@@ -353,7 +377,7 @@ int processUnregister(string uid) {
     return 0;
 }
 
-int processListMyAuctions(string uid) {     //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+int processListMyAuctions(string uid) {
     if (!checkFormat("uid", uid)) {
         cerr << "Poorly formatted request.\n";
         return -1;
@@ -368,10 +392,18 @@ int processListMyAuctions(string uid) {     //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         n=sendto(ufd,"RMA NLG\n",8,0,(struct sockaddr*) &udpAddr, addrlen);
         if (n==-1) cout << "Problema no sendto: RMA NLG\n";
     } else if (c._status == "logged in") {    //RMA OK|NOK
-        //buffer = RMA OK
-        //buffer += getUserAuctions();
-        n=sendto(ufd,"RMA OK\n",7,0,(struct sockaddr*) &udpAddr, addrlen);
-        if (n==-1) cout << "Problema no sendto: RMA OK\n";
+        string list = listAuctions(getUserAuctions(uid, "HOSTED"));
+        //cout << "LIST:" << list << ":\n";
+        if (list == "") {       //RMA NOK - no HOSTED auctions
+            n=sendto(ufd,"RMA NOK\n",8,0,(struct sockaddr*) &udpAddr, addrlen);
+            if (n==-1) cout << "Problema no sendto: RMA NOK\n";
+
+        } else {
+            string buffer = "RMA OK";
+            buffer += list + '\n';
+            n=sendto(ufd,buffer.c_str(),buffer.length(),0,(struct sockaddr*) &udpAddr, addrlen);
+            if (n==-1) cout << "Problema no sendto: RMA OK\n";
+        }
     } else {
         cout << "Erro." << '\n';
         return -1;
@@ -379,7 +411,7 @@ int processListMyAuctions(string uid) {     //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     return 0;
 }
 
-int processListMyBids(string uid) {     //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+int processListMyBids(string uid) {
     if (!checkFormat("uid", uid)) {
         cerr << "Poorly formatted request.\n";
         return -1;
@@ -392,12 +424,20 @@ int processListMyBids(string uid) {     //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     if (c._status == "unregistered" || c._status == "logged out") {  //RMB NLG
         //cout << "User: " << uid << "is not logged in." << '\n';
         n=sendto(ufd,"RMB NLG\n",8,0,(struct sockaddr*) &udpAddr, addrlen);
-        if (n==-1) cout << "Problema no sendto: RMA NLG\n";
-    } else if (c._status == "logged in") {    //RMB OK|NOK
-        //buffer = RMB OK
-        //buffer += getUserAuctions();
-        n=sendto(ufd,"RMA OK\n",7,0,(struct sockaddr*) &udpAddr, addrlen);
-        if (n==-1) cout << "Problema no sendto: RMB OK\n";
+        if (n==-1) cout << "Problema no sendto: RMB NLG\n";
+    } else if (c._status == "logged in") {    //RMA OK|NOK
+        string list = listAuctions(getUserAuctions(uid, "BIDDED"));
+        //cout << "LIST:" << list << ":\n";
+        if (list == "") {       //RMB NOK - no BIDDED bids
+            n=sendto(ufd,"RMB NOK\n",8,0,(struct sockaddr*) &udpAddr, addrlen);
+            if (n==-1) cout << "Problema no sendto: RMB NOK\n";
+
+        } else {
+            string buffer = "RMB OK";
+            buffer += list + '\n';
+            n=sendto(ufd,buffer.c_str(),buffer.length(),0,(struct sockaddr*) &udpAddr, addrlen);
+            if (n==-1) cout << "Problema no sendto: RMB OK\n";
+        }
     } else {
         cout << "Erro." << '\n';
         return -1;
@@ -405,28 +445,18 @@ int processListMyBids(string uid) {     //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     return 0;
 }
 
-int processList(string uid) {     //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    if (!checkFormat("uid", uid)) {
-        cerr << "Poorly formatted request.\n";
-        return -1;
-    }
+int processList() {
 
-    Client c = getUser(uid);
-    if (c._password == "problem") return -1;
-
-    //enviar ACK
-    if (c._status == "unregistered" || c._status == "logged out") {  //RMA NLG
-        //cout << "User: " << uid << "is not logged in." << '\n';
-        n=sendto(ufd,"RMA NLG\n",8,0,(struct sockaddr*) &udpAddr, addrlen);
-        if (n==-1) cout << "Problema no sendto: RMA NLG\n";
-    } else if (c._status == "logged in") {    //RMA OK|NOK
-        //buffer = RMA OK
-        //buffer += getUserAuctions();
-        n=sendto(ufd,"RMA OK\n",7,0,(struct sockaddr*) &udpAddr, addrlen);
-        if (n==-1) cout << "Problema no sendto: RMA OK\n";
+    string list = listAuctions(getAllAuctions());
+    cout << "LIST:" << list << ":\n";
+    if (list == "") {       //RLS NOK - no Auctions yet
+        n=sendto(ufd,"RLS NOK\n",8,0,(struct sockaddr*) &udpAddr, addrlen);
+        if (n==-1) cout << "Problema no sendto: RLS NOK\n";
     } else {
-        cout << "Erro." << '\n';
-        return -1;
+        string buffer = "RLS OK";
+        buffer += list + '\n';
+        n=sendto(ufd,buffer.c_str(),buffer.length(),0,(struct sockaddr*) &udpAddr, addrlen);
+        if (n==-1) cout << "Problema no sendto: RMB OK\n";
     }
     return 0;
 }

@@ -1,14 +1,14 @@
-#ifndef AUCTION_HPP
-#define AUCTION_HPP
-
+#ifndef BID_HPP
+#define BID_HPP
+/*
 #include <stdlib.h>
 #include <string>
 
 using namespace std;
 
-class Auction {
+class Bid {
     public:
-    Auction(string name, int startValue, int duration, int uid);
+    Bid(string name, int startValue, int duration, int uid);
     Auction(int uid, string aid, int state);   //for getUserAuctions
     Auction(string aid);
     string _name;
@@ -20,6 +20,6 @@ class Auction {
     string toString();
     string simpleToString();
 };
-
+*/  
 
 #endif

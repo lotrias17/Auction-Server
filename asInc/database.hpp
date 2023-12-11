@@ -9,11 +9,13 @@
 #include <stdio.h>
 #include <iostream>
 #include <fcntl.h>
+#include <dirent.h>
+#include <vector>
 
 #include "../userInc/Client.hpp"
+#include "../asInc/Auction.hpp"
 
 using namespace std;
-
 
 int addUser(string uid, string password);
 int unregisterUser(string uid);
@@ -23,6 +25,9 @@ int checkUserRegistry(string uid);
 Client getUser(string uid);
 int setUser(Client c);
 
+vector<Auction> getUserAuctions(string uid, string dir);
+string listAuctions(vector<Auction> list);
+vector<Auction> getAllAuctions();
 //int addAuction();
 //int deleteAuction();
 //int getAuction();

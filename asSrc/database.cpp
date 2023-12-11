@@ -1,5 +1,7 @@
 #include "../asInc/database.hpp"
 
+//int currAid = 0;
+
 // User Functions ----------------------------------------------------------------
 
 // check if uid is already registered
@@ -173,7 +175,79 @@ int setUser(Client c) {
 
 // Auction Functions ------------------------------------------------------------------
 
+vector<Auction> getUserAuctions(string uid, string dir) {
+    vector<Auction> auctionList;
+    FILE* fp;
+    char state[1];
+    struct dirent **filelist;
+    int numEntries;
+    string usedDir = "USERS/" + uid + '/' + dir + '/';
+    string name, path;
+    
+    
+    numEntries = scandir(usedDir.c_str(), &filelist, 0, alphasort);
+    if (numEntries <= 2) {
+        auctionList.push_back(Auction("-1"));     //user has no auctions
+        return auctionList;
+    }
+    while (numEntries--) {
+        name = filelist[numEntries]->d_name;
+        if (name.length() == 7) {
+            path = usedDir + name;
+
+            string aid = name.substr(0, name.find_last_of("."));
+
+            //read file for state
+            fp = fopen(path.c_str(), "r");
+            if (fp == NULL) {       //problema no fopen
+                auctionList.erase(auctionList.begin(), auctionList.end());
+                return auctionList;     
+            } 
+            fread(state, sizeof(state), 1, fp);
+
+            auctionList.push_back(Auction(stoi(uid), aid, atoi(state)));
+        }
+        free(filelist[numEntries]);
+    }
+    free(filelist);
+    return auctionList;
+}
+
+vector<Auction> getAllAuctions() {      //through HOSTED in every client
+    vector<Auction> auctionList, auxList;
+    string uid, userDir = "USERS/";
+    struct dirent **filelist;
+    int numEntries;
+
+    numEntries = scandir(userDir.c_str(), &filelist, 0, alphasort);
+
+    cout << "NUM:" << to_string(numEntries) << '\n';
+
+    if (numEntries <= 2) {
+        auctionList.push_back(Auction("-1"));     //there are no clients
+        return auctionList;
+    }
+    while (numEntries--) {
+        uid = filelist[numEntries]->d_name;
+        if (uid.length() == 6) {
+            auxList = getUserAuctions(uid, "HOSTED");
+            auctionList.insert(auctionList.end(), auxList.begin(), auxList.end());
+        }
+    }
+    return auctionList;
+}
 
 
+string listAuctions(vector<Auction> list) {
+    string res = "";
+    int size = list.size();
+    for (int i = 0; i<size; i++) {
+        if (stoi(list[i]._aid) == -1) {
+            break;
+        }
+        res += " " + list[i].simpleToString();
+    }
+    return res;
+}
 
 // Bid Functions ----------------------------------------------------------------------
