@@ -931,6 +931,8 @@ int Interface::open() {
     memcpy(_buffer + j, " ", 1);
     j++;
     _buffer[j] = '\0';
+    
+    // cout << _buffer << "\n";
 
     _tcpfd = socket(AF_INET, SOCK_STREAM, 0);
     if (_tcpfd == -1) {
@@ -1014,12 +1016,12 @@ int Interface::open() {
     fd_set readfd;
     struct timeval tv;
     FD_ZERO(&readfd);
-    FD_SET(_udpfd, &readfd);
+    FD_SET(_tcpfd, &readfd);
     tv.tv_sec = 3;
     tv.tv_usec = 0;
 
     // cout << "fiz o select!\n";
-    int u = select(_udpfd + 1, &readfd, NULL, NULL, &tv);
+    int u = select(_tcpfd + 1, &readfd, NULL, NULL, &tv);
     // cout << "j: " << j << "\n";
     if (u == -1) {
         cout << "Erro no select()\n";
@@ -1073,7 +1075,7 @@ int Interface::open() {
         if (n - 8 != 0) {
             close(_tcpfd);
             cout << "O servidor deu a resposta errada!\n";
-            return 0;
+            return 0;   
         }
         close(_tcpfd);
         cout << "utilizador não esta logado ;)\n";
