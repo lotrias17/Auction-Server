@@ -42,13 +42,13 @@ void verboseOut(vector<string> input, string protocol) {    //output quando em m
     int prt;
     cout << "\n-------------Received-------------\n";
     if (protocol == "udp") {       //UDP request
-        if (input[0] == "LIN") cout << "Login UID: " << input[1] << '\n';
-        else if (input[0] == "LOU") cout << "Logout UID: " << input[1] << '\n';
-        else if (input[0] == "UNR") cout << "Unregister UID: " << input[1] << '\n';
-        else if (input[0] == "LMA") cout << "List Auctions UID: " << input[1] << '\n';
-        else if (input[0] == "LMB") cout << "List Bids UID: " << input[1] << '\n';
+        if (input[0] == "LIN") cout << "Login, UID: " << input[1] << '\n';
+        else if (input[0] == "LOU") cout << "Logout, UID: " << input[1] << '\n';
+        else if (input[0] == "UNR") cout << "Unregister, UID: " << input[1] << '\n';
+        else if (input[0] == "LMA") cout << "List Auctions, UID: " << input[1] << '\n';
+        else if (input[0] == "LMB") cout << "List Bids, UID: " << input[1] << '\n';
         else if (input[0] == "LST") cout << "List All Auctions\n";
-        else if (input[0] == "SRC") cout << "Show Record AID: " << input[1] << '\n';
+        else if (input[0] == "SRC") cout << "Show Record, AID: " << input[1] << '\n';
         else cout << "Unknown Command.\n";
 
         ip = inet_ntoa(udpAddr.sin_addr);
@@ -56,6 +56,11 @@ void verboseOut(vector<string> input, string protocol) {    //output quando em m
         printf("IP: %s *** PORT: %d\n",ip,prt);
 
     } else {    //TCP request
+        if (input[0] == "OPA") cout << "Open auction, UID: " << input[1] << '\n';
+        else if (input[0] == "CLS") cout << "Close Auction, UID: " << input[1] << '\n';
+        else if (input[0] == "SAS") cout << "Show Asset, UID: " << input[1] << '\n';
+        else if (input[0] == "BID") cout << "Bid, UID: " << input[1] << '\n';
+        else cout << "Unknown Command.\n";
         ip = inet_ntoa(tcpAddr.sin_addr);
         prt = tcpAddr.sin_port;
         printf("IP: %s *** PORT: %d\n",ip,prt);
@@ -118,8 +123,6 @@ void receiveRequest() {
     char in_str[128];
     struct timeval timeout;
 
-    int newfd;
-
     char p[8];
     strcpy(p, to_string(port).c_str());
     
@@ -132,6 +135,7 @@ void receiveRequest() {
     FD_SET(tfd, &inputs);   //add tcp socket
 
     while (1) {
+
         testFds = inputs;    //reload mask
 
         memset((void *)&timeout,0,sizeof(timeout));     //timeout
@@ -170,20 +174,28 @@ void receiveRequest() {
                     addrlen = sizeof(tcpAddr);
                     if ((newfd = accept(tfd, (struct sockaddr*) &tcpAddr, &addrlen)) == -1) perror("accept");
 
-                    n = read(newfd, buffer, 128);
-                    if (n == -1) {
-                        if (read(newfd, buffer, 8388608) == -1) exit(1);
+                    string tcpBuffer = "";
+                    n = 1;
+                    while (n != 0) {
+                        cout << "TCP read: " << n << '\n';
+                        n = read(newfd, buffer, 128);
+                        if (n == -1) {
+                            cerr << "Erro a ler buffer TCP.\n";
+                            exit(1);
+                        }
+                        tcpBuffer += buffer;
                     }
-                    if (serverResponse(buffer, "tcp") == -1) {
+
+                    cout << "2AQUI!\n";
+                    n=write(newfd,"CLS OK\n", 7);   // ROA OK
+                    if (n==-1) cout << "Problema no sendto: ROA OK\n";
+
+                    if (serverResponse(tcpBuffer, "tcp") == -1) {
                         //cerr << "Problema ao processar request.\n";
                         if (write(newfd, "ERR\n", 4) == -1) perror("tcp write");
                     }
-                    /*
-                    write(1, "received: ", 10); write(1, buffer, n);
 
                     // response is handled by specific functions: serverResponse()
-                    n = write(newfd, buffer, n);
-                    if (n == -1) exit(1);*/
                     close(newfd);
                 }
         }
@@ -197,22 +209,21 @@ void receiveRequest() {
     return;
 }
 
-int serverResponse(char* buffer, string protocol) {
+int serverResponse(string buffer, string protocol) {
     int n = 0;
     vector<string> input;
     string s;
     stringstream buf;
     buf << buffer;
-
-    cout << "Buffer:";
+    
     while(getline(buf, s, ' ')) {
         input.push_back(s);
         n++;
-        cout << " " << s;
     }
-    cout << ":\n";
     input[n-1].pop_back();
-    
+
+    if (verbose) verboseOut(input, protocol);
+
     if (input[0] == "LIN") {    //UDP
         if ((processLogin(input[1], input[2])) == -1) {
             cerr << "Problema a processar login.\n";
@@ -246,27 +257,27 @@ int serverResponse(char* buffer, string protocol) {
         }
     } else if (input[0] == "SRC") {     //UDP
         if ((n = processListMyAuctions(input[1])) == -1) {
-            cerr << "Problema a processar LMA.\n";
+            cerr << "Problema a processar SRC.\n";
             return -1;
         }
     } else if (input[0] == "OPA") {     //TCP
         if ((n = processOpen(input)) == -1) {
-            cerr << "Problema a processar LMA.\n";
+            cerr << "Problema a processar OPA.\n";
             return -1;
         }
     } else if (input[0] == "CLS") {     //TCP
         if ((n = processListMyAuctions(input[1])) == -1) {
-            cerr << "Problema a processar LMA.\n";
+            cerr << "Problema a processar CLS.\n";
             return -1;
         }
     } else if (input[0] == "SAS") {     //TCP
         if ((n = processListMyAuctions(input[1])) == -1) {
-            cerr << "Problema a processar LMA.\n";
+            cerr << "Problema a processar SAS.\n";
             return -1;
         }
     } else if (input[0] == "BID") {     //TCP
         if ((n = processListMyAuctions(input[1])) == -1) {
-            cerr << "Problema a processar LMA.\n";
+            cerr << "Problema a processar BID.\n";
             return -1;
         }
     }
@@ -275,7 +286,6 @@ int serverResponse(char* buffer, string protocol) {
         return -1;
     }
     
-    if (verbose) verboseOut(input, protocol);
     return 1;
 }
 
@@ -283,7 +293,8 @@ int serverResponse(char* buffer, string protocol) {
 
 int processLogin(string uid, string password) {
     int status = 0;
-    
+    // atualizar database
+    // retornar estado 
     if (!checkFormat("uid", uid) || !checkFormat("password", password)) {
         cerr << "Poorly formatted request.\n";
         return -1;
@@ -299,6 +310,7 @@ int processLogin(string uid, string password) {
         if (setUser(c) == -1) return -1;   //atualizar database
 
         //cout << "Registered User: " << uid << '\n';
+        //buf = "RLI REG\n";
         n=sendto(ufd,"RLI REG\n",8,0,(struct sockaddr*) &udpAddr, addrlen);
         if (n==-1) cout << "Problema no sendto: RLI REG\n";
     } else if (c._status == "logged out" || c._status == "logged in") {   //RLI OK
@@ -319,7 +331,7 @@ int processLogin(string uid, string password) {
         cout << "Erro." << '\n';
         return -1;
     }
-    
+    // return buf;
     return 0;
 }
 
@@ -489,7 +501,6 @@ int processOpen(vector<string> input) {
         cerr << "Poorly formatted request.\n";
         return -1;
     }
-
     //check name, startValue, timeactive
     if (!isAlphaNumeric(name) || name.length() > 10) {
         //cout << "O nome do produto tem de ser menor que 10 characteres!\n";
@@ -505,19 +516,71 @@ int processOpen(vector<string> input) {
         return -1;
     }
 
-    //check Fname, Fsize, Fdata
+    //check if user is logged in
+    Client c = getUser(uid);
+    if (c._password == "problem") return -1;
 
-    //addAuction()      //create auction, update database
+    if (c._status != "logged in") {
+        //ROA NLG if uid is not logged in
+        n=write(newfd,"ROA NLG\n", 8);
+        if (n==-1) cout << "Problema no sendto: ROA NLG\n";
+        return 0;
+    }
 
-    //ROA NOK if auction could not be started
-    //ROA NLG if uid is not logged in
-    //ROA OK, send AID of created auction
+    //create auction, update database
+    if (addAuction(input) == -1) {      // problema a adicionar Auction
+        cout << "1AQUI!\n";
+        n=write(newfd,"ROA NOK\n", 8);   // ROA NOK
+        if (n==-1) cout << "Problema no sendto: ROA NOK\n";
+    } else {
+        cout << "2AQUI!\n";
+        n=write(newfd,"ROA OK\n", 7);   // ROA OK
+        if (n==-1) cout << "Problema no sendto: ROA OK\n";
+    }
 
     return 0;
 }
 
-//int processClose() {}
-//int processBid() {}
+int processClose(string uid, string aid) {
+    (void) aid;
+    if (!checkFormat("uid", uid)) {
+        cerr << "Poorly formatted request.\n";
+        return -1;
+    }
+
+    return 0;
+    //check if uid is logged in (RCL NLG)
+
+    //check if aid exists   (RCL EAU)
+
+    //check if aid was HOSTED by uid (RCL EOW)
+
+    //check if aid is still active (RCL END)
+
+    // RCL OK, end auction by adding END_aid.txt to AUCTIONS/aid/
+}
+
+int processBid(string uid, string aid, string bid) {
+    (void) aid;
+    (void) bid;
+    if (!checkFormat("uid", uid)) {
+        cerr << "Poorly formatted request.\n";
+        return -1;
+    }
+    return 0;
+    //check if uid is logged in (RBD NLG)
+
+    //check if aid is not ENDed (RBD NOK)
+
+    //check if aid doesnt belong to uid (RBD ILG)
+
+    //check if bid is higher than previous highest bid (RBD REF)
+
+    // RBD ACC, aid.highestBid = bid;
+
+}
+
+
 //int processShowAsset() {}
 
 int main(int argc, char** argv) {

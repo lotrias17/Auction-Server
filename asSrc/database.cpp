@@ -1,6 +1,6 @@
 #include "../asInc/database.hpp"
 
-//int currAid = 0;
+int currAid = 0;
 
 // User Functions ----------------------------------------------------------------
 
@@ -237,7 +237,6 @@ vector<Auction> getAllAuctions() {      //through HOSTED in every client
     return auctionList;
 }
 
-
 string listAuctions(vector<Auction> list) {
     string res = "";
     int size = list.size();
@@ -248,6 +247,78 @@ string listAuctions(vector<Auction> list) {
         res += " " + list[i].simpleToString();
     }
     return res;
+}
+
+int addAuction(vector<string> input) {
+    string uid = input[1];
+    string password = input[2];
+    string name = input[3];
+    string startValue = input[4];
+    string timeActive = input[5];
+    string Fname = input[6];
+    string Fsize = input[7];
+    string Fdata = input[8];
+    FILE* fp;
+    time_t fullTime;
+    struct tm* date;
+
+    Auction auc = Auction(stoi(uid), name, stoi(startValue), stoi(timeActive));
+    if (currAid < 1000) auc._aid = ++currAid;
+    else return -1;
+
+    string aucDir = "AUCTIONS/" + aidToString(currAid) + "/";
+    // criar diretoria (aid)/
+    if ((mkdir(aucDir.c_str(), 0700)) == -1) return -1;    //problema a fazer aucDir
+
+    // criar diretoria BIDS/ e diretoria ASSET/
+    string path = aucDir + "BIDS/";
+    if ((mkdir(path.c_str(), 0700)) == -1) return -1;    //problema a fazer BIDS/
+
+    // criar START_(aid).txt com UID name Fname startValue timeactive startDateTime startFullTime
+    time(&fullTime);
+    date = gmtime(&fullTime);
+    
+    string s = uid + " " + name + " " + Fname + " " + startValue + " " + timeActive + " "
+    + timeToString(date) + " " + to_string(fullTime);
+
+    path = aucDir + "START_" + to_string(currAid) + ".txt";
+    fp = fopen(path.c_str(), "w");
+    if (fp == NULL) return -1;
+    fwrite(Fdata.c_str(), sizeof(char), stoi(Fsize), fp);
+    fclose(fp);
+
+    path = aucDir + "ASSET/";
+    if ((mkdir(path.c_str(), 0700)) == -1) return -1;    //problem making userDir
+
+    path += Fname;
+    
+    // adicionar asset com Fname, Fsize e Fdata à diretoria ASSET/
+    cout << "Vou tentar escrever!\n";
+    ofstream file;
+
+    file.open(path.c_str());
+
+    file << Fdata;
+
+    file.close();
+
+    return currAid;
+}
+
+string timeToString(tm* tm) {
+    char t[20];
+    sprintf(t, "%4d-%02d-%02d %02d:%02d:%02d", tm->tm_year+1900, tm->tm_mon+1, tm->tm_mday,
+    tm->tm_hour, tm->tm_min, tm->tm_sec);
+    string s = t;
+    return s;
+}
+
+string aidToString(int aid) {
+    string id = to_string(aid);
+    if (id.length() == 3) return id;
+    else if (id.length() == 2) return "0" + id;
+    else if (id.length() == 1) return "00" + id;
+    else return "!"; 
 }
 
 // Bid Functions ----------------------------------------------------------------------

@@ -11,26 +11,29 @@
 #include <fcntl.h>
 #include <dirent.h>
 #include <vector>
+#include <time.h>
+#include <fstream>
 
 #include "../userInc/Client.hpp"
 #include "../asInc/Auction.hpp"
 
 using namespace std;
 
-int aid = 0;
+string aidToString(int aid);
+string timeToString(tm* time);
+int checkUserRegistry(string uid);
 
 int addUser(string uid, string password);
 int unregisterUser(string uid);
 int loginUser(string uid, string password);
 int logoutUser(string uid);
-int checkUserRegistry(string uid);
 Client getUser(string uid);
 int setUser(Client c);
 
 vector<Auction> getUserAuctions(string uid, string dir);
 string listAuctions(vector<Auction> list);
 vector<Auction> getAllAuctions();
-//int addAuction();
+int addAuction(vector<string> input);
 //int deleteAuction();
 //int getAuction();
 

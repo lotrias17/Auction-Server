@@ -21,7 +21,7 @@
 using namespace std;
 
 int port = 58011;   //should be 58000 + Group Number
-int ufd, tfd, udpErrcode, tcpErrcode, outFds;
+int newfd, ufd, tfd, udpErrcode, tcpErrcode, outFds;
 ssize_t n;
 socklen_t addrlen;
 struct addrinfo uhints,*ures, thints, *tres;
@@ -35,7 +35,7 @@ void setUdpSocket(char* p);
 void setTcpSocket(char* p);
 void receiveRequest();
 bool checkPORTFormat(char* str);
-int serverResponse(char* buffer, string protocol);
+int serverResponse(string buffer, string protocol);
 bool isAlphaNumeric(string str);
 bool isNumeric(string str);
 bool checkFormat(string format, string str);

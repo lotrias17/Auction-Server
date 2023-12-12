@@ -8,7 +8,7 @@ using namespace std;
 
 class Auction {
     public:
-    Auction(string name, int startValue, int duration, int uid);
+    Auction(int uid, string name, int stvl, int dur);
     Auction(int uid, string aid, int state);   //for getUserAuctions
     Auction(string aid);
     string _name;

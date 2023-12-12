@@ -1,6 +1,6 @@
 #include "../asInc/Auction.hpp"
 
-Auction::Auction(string name, int stvl, int dur, int uid) {
+Auction::Auction(int uid, string name, int stvl, int dur) {
     _name = name;
     _startValue = stvl;
     _duration = dur;
