@@ -28,7 +28,7 @@ void Interface::prepareSocket() {
 }
 
 Interface::Interface() {
-    _port = 58011;
+    _port = 58014;
     strcpy(_server, "localhost");
     _client = NULL;
 }
@@ -40,7 +40,7 @@ Interface::Interface(int port) {
 }
 
 Interface::Interface(char* server) {
-    _port = 58011;  // this value should be the group number but it is 11 for the tejo testing
+    _port = 58014;  // this value should be the group number but it is 11 for the tejo testing
     strcpy(_server, server);
     _client = NULL;
 }
@@ -125,6 +125,16 @@ bool Interface::checkpasswordFormat(string str) {
 
 bool Interface::checkAIDFormat(string str) {
     return str.size() == 3 && isNumeric(str);
+}
+
+string directoryOut(string filePath) {
+    int pos = filePath.find_last_of('/');
+    if (pos == -1) {
+        return filePath;
+    }
+    else {
+        return filePath.substr(pos + 1);
+    }
 }
 
 int Interface::get() {  //logo pode-se apagar acho eu
@@ -289,8 +299,12 @@ int Interface::login() {
     // cout << "Eu recebi mas n checkei: " << _buffer; // serve para checkar o q se recebeu
 
     if (!checkServerAnswer(n, _buffer, "RLI ")) {
+        if (checkServerAnswer(n, _buffer, "ERR\n")) {
+            cout << "Erro interno ao formar a mensagem a enviar ao servidor!\n";
+            return 0;
+        }
         cout << "O servidor deu a resposta errada!\n";
-        return -1;
+        return 0;
     }
 
     if (checkServerAnswer(n - 4, _buffer + 4, "OK\n")) {
@@ -305,7 +319,7 @@ int Interface::login() {
             cout << "O servidor deu a resposta errada!\n";
             return 0;
         }
-        cout << "registro feito ;)\n";
+        cout << "Registro feito ;)\n";
         return 0;
     } else if (checkServerAnswer(n - 4, _buffer + 4, "NOK\n")) {
         if (n - 8 != 0) {
@@ -314,6 +328,9 @@ int Interface::login() {
         }
         // password incorreta
         return 1;
+    } else if (checkServerAnswer(n - 4, _buffer + 4, "ERR\n")) {
+        cout << "Erro interno ao formar a mensagem a enviar ao servidor!\n";
+        return 0;
     }
 
     cout << "O servidor deu a resposta errada!\n";
@@ -339,6 +356,10 @@ int Interface::logout() {
     // cout << "Eu recebi mas n checkei: " << _buffer; // server para checkar o input
 
     if (!checkServerAnswer(n, _buffer, "RLO ")) {
+        if (checkServerAnswer(n, _buffer, "ERR\n")) {
+            cout << "Erro interno ao formar a mensagem a enviar ao servidor!\n";
+            return 0;
+        }
         cout << "O servidor deu a resposta errada!\n";
         return 0;
     }
@@ -357,15 +378,18 @@ int Interface::logout() {
             cout << "O servidor deu a resposta errada!\n";
             return 0;
         }
-        cout << "User n resgistrado\n";
+        cout << "User não resgistrado\n";
         return 2;
     } else if (checkServerAnswer(n - 4, _buffer + 4, "NOK\n")) {
         if (n - 8 != 0) {
             cout << "O servidor deu a resposta errada!\n";
             return 0;
         }
-        cout << "User not logged in on server!\n";
+        cout << "User não esta loggedin on server!\n";
         return 1;
+    } else if (checkServerAnswer(n - 4, _buffer + 4, "ERR\n")) {
+        cout << "Erro interno ao formar a mensagem a enviar ao servidor!\n";
+        return 0;
     }
 
     cout << "O servidor deu a resposta errada!\n";
@@ -391,6 +415,10 @@ int Interface::unregister() {
     // cout << "Eu recebi mas n checkei: " << _buffer; // serve para checkar o q se recebeu
 
     if (!checkServerAnswer(n, _buffer, "RUR ")) {
+        if (checkServerAnswer(n, _buffer, "ERR\n")) {
+            cout << "Erro interno ao formar a mensagem a enviar ao servidor!\n";
+            return 0;
+        }
         cout << "O servidor deu a resposta errada!\n";
         return 0;
     }
@@ -416,8 +444,11 @@ int Interface::unregister() {
             cout << "O servidor deu a resposta errada!\n";
             return 0;
         }
-        cout << "sem utilizador logged in.\n";
+        cout << "O utilizador não esta logged in.\n";
         return 2;
+    } else if (checkServerAnswer(n - 4, _buffer + 4, "ERR\n")) {
+        cout << "Erro interno ao formar a mensagem a enviar ao servidor!\n";
+        return 0;
     }
 
     cout << "O servidor deu a resposta errada!\n";
@@ -441,6 +472,10 @@ int Interface::myauctions() {
     // cout << "Eu recebi mas n checkei: " << _buffer; // serve para checkar o q se recebeu
 
     if (!checkServerAnswer(n, _buffer, "RMA ")) {
+        if (checkServerAnswer(n, _buffer, "ERR\n")) {
+            cout << "Erro interno ao formar a mensagem a enviar ao servidor!\n";
+            return 0;
+        }
         cout << "O servidor deu a resposta errada!\n";
         return -1;
     }
@@ -486,14 +521,17 @@ int Interface::myauctions() {
             return -1;
         }
         cout << "utilizador não esta logado ;)\n";
-        return 1;
+        return 0;
     } else if (checkServerAnswer(n - 4, _buffer + 4, "NOK\n")) {
         if (n - 8 != 0) {
             cout << "O servidor deu a resposta errada!\n";
             return -1;
         }
         cout << "Não tem nenhuma ongoing auction.\n";
-        return 2;
+        return 0;
+    } else if (checkServerAnswer(n - 4, _buffer + 4, "ERR\n")) {
+        cout << "Erro interno ao formar a mensagem a enviar ao servidor!\n";
+        return 0;
     }
 
     cout << "O servidor deu a resposta errada!\n";
@@ -517,6 +555,10 @@ int Interface::mybids() {
     // cout << "Eu recebi mas n checkei: " << _buffer; // serve para checkar o q se recebeu
 
     if (!checkServerAnswer(n, _buffer, "RMB ")) {
+        if (checkServerAnswer(n, _buffer, "ERR\n")) {
+            cout << "Erro interno ao formar a mensagem a enviar ao servidor!\n";
+            return 0;
+        }
         cout << "O servidor deu a resposta errada!\n";
         return -1;
     }
@@ -570,6 +612,9 @@ int Interface::mybids() {
         }
         cout << "Não tem nenhuma ongoing bid.\n";
         return 2;
+    } else if (checkServerAnswer(n - 4, _buffer + 4, "ERR\n")) {
+        cout << "Erro interno ao formar a mensagem a enviar ao servidor!\n";
+        return 0;
     }
 
     cout << "O servidor deu a resposta errada!\n";
@@ -591,6 +636,10 @@ int Interface::list() {
     // cout << "Eu recebi mas n checkei: " << _buffer; // serve para checkar o q se recebeu
 
     if (!checkServerAnswer(n, _buffer, "RLS ")) {
+        if (checkServerAnswer(n, _buffer, "ERR\n")) {
+            cout << "Erro interno ao formar a mensagem a enviar ao servidor!\n";
+            return 0;
+        }
         cout << "O servidor deu a resposta errada!\n";
         return 0;
     }
@@ -637,6 +686,9 @@ int Interface::list() {
         }
         cout << "Nenhuma auction iniciada.\n";
         return 1;
+    } else if (checkServerAnswer(n - 4, _buffer + 4, "ERR\n")) {
+        cout << "Erro interno ao formar a mensagem a enviar ao servidor!\n";
+        return 0;
     }
 
     cout << "O servidor deu a resposta errada!\n";
@@ -660,9 +712,14 @@ int Interface::printBid(int n, int i) {
         uid[k] = _buffer[i + k];
     }
     uid[6] = '\0';
+    if (_buffer[i + 6] != ' ') {
+        cout << "Resposta do servidor mal formatada!\n";
+        return 0;
+    }
     i += 7;
     cout << "O utilizador " << uid;
 
+    bool left = false;
     char bidvalue[128];
     for (int k = 0; k < 8 * 1024; k++) {
         if (n < i + k + 1) {
@@ -671,10 +728,15 @@ int Interface::printBid(int n, int i) {
         }
         if (_buffer[i + k] == ' ') {
             bidvalue[k] = '\0';
+            left = true;
             i += k + 1;
             break;
         }
         bidvalue[k] = _buffer[i + k];
+    }
+    if (!left) {
+        cout << "Resposta do servidor mal formatada!\n";
+        return 0;
     }
     cout << " deu bid com o valor " << bidvalue;
 
@@ -687,10 +749,15 @@ int Interface::printBid(int n, int i) {
         bDate[k] = _buffer[i + k];
     }
     bDate[19] = '\0';
+    if (_buffer[i + 19] != ' ') {
+        cout << "Resposta do servidor mal formatada!\n";
+        return 0;
+    }
     i += 20;
 
     cout << " as " << bDate;
 
+    left = false;
     char endtimeactive[128];
     for (int k = 0; k < 8 * 1024; k++) {
         if (n < i + k + 1) {
@@ -699,10 +766,15 @@ int Interface::printBid(int n, int i) {
         }
         if (_buffer[i + k] == ' ') {
             endtimeactive[k] = '\0';
+            left = true;
             i += k + 1;
             break;
         }
         endtimeactive[k] = _buffer[i + k];
+    }
+    if (!left) {
+        cout << "Resposta do servidor mal formatada!\n";
+        return 0;
     }
     cout << ", " << atoi(endtimeactive) << " segundos apos o inicio da auction!\n";
     return (i - l - 1);
@@ -725,6 +797,10 @@ int Interface::showRecord() {
     // cout << "Eu recebi mas n checkei: " << _buffer; // serve para checkar o q se recebeu
 
     if (!checkServerAnswer(n, _buffer, "RRC ")) {
+        if (checkServerAnswer(n, _buffer, "ERR\n")) {
+            cout << "Erro interno ao formar a mensagem a enviar ao servidor!\n";
+            return 0;
+        }
         cout << "O servidor deu a resposta errada!\n";
         return -1;
     }
@@ -828,7 +904,7 @@ int Interface::showRecord() {
 
         for (int i = pos; i < 8 *1024; i++) {
             if (n < i) {
-                cout << "Resposta do servidor mal formatada!\n";
+                cout << "\nResposta do servidor mal formatada!\n";
                 return 0;
             }
             if (_buffer[i] == 'B') {
@@ -837,37 +913,46 @@ int Interface::showRecord() {
                     return 0;
                 }
                 i += j;
-                // cout << "O resto do buffer after bid: " << _buffer + i; 
+                cout << "O resto do buffer after bid: " << _buffer + i; 
                 continue;
             }
             if (_buffer[i] == 'E') {
                 char endDate[128];
                 (void) endDate;
+                i += 2;
                 if (i + 20 > n) {
-                    cout << "Resposta do servidor mal formatada!\n";
+                    cout << "\nResposta do servidor mal formatada!\n";
                     return 0;
                 }
                 for (int j = 0; j < 19; j++) {
                     endDate[j] = _buffer[i + j];
                 }
                 endDate[19] = '\0';
+                if (_buffer[i + 19] != ' ') {
+                    cout << "Resposta do servidor mal formatada!\n";
+                    return 0;
+                }
                 i += 20;
-                cout << "A auction acabou as " << startDate;
+                cout << "A auction acabou as " << endDate;
 
                 char endtimeactive[128];
                 for (int k = 0; k < 8 * 1024; k++) {
-                    if (n < i + k + 1) {
+                    if (n < i + k) {
                         cout << "Resposta do servidor mal formatada!\n";
                         return 0;
                     }
-                    if (_buffer[i + k] == ' ') {
+                    if (_buffer[i + k] == '\n') {
                         endtimeactive[k] = '\0';
                         i += k + 1;
                         break;
                     }
                     endtimeactive[k] = _buffer[i + k];
+                } 
+                if (n != i) {
+                    cout << "Resposta do servidor mal formatdada!\n";
+                    return 0;
                 }
-                cout << " e acabou apos " << atoi(endtimeactive) << " segundos \n";
+                cout << " e acabou apos " << endtimeactive << " segundos \n";
                 return 0;
             }
         }
@@ -879,6 +964,9 @@ int Interface::showRecord() {
             return -1;
         }
         cout << "Não existe nenhuma auction com esse numero.\n";
+        return 0;
+    } else if (checkServerAnswer(n - 4, _buffer + 4, "ERR\n")) {
+        cout << "Erro interno ao formar a mensagem a enviar ao servidor!\n";
         return 0;
     }
 
@@ -910,8 +998,9 @@ int Interface::open() {
     j += _words[4].size();
     memcpy(_buffer + j, " ", 1);
     j++;
-    memcpy(_buffer + j, _words[2].c_str(), _words[2].size());
-    j += _words[2].size();
+    string yup = directoryOut(_words[2]);
+    memcpy(_buffer + j, yup.c_str(), yup.size()); // tirar o /
+    j += yup.size();
     memcpy(_buffer + j, " ", 1);
     j++;
     // file part
@@ -990,7 +1079,7 @@ int Interface::open() {
     while (sent < fileSize) {
         inFile.read(_buffer, 8 * 1024);
         read1 = inFile.gcount();
-        cout << "Li: " << read1 << " bytes dos " << fileSize << "\n";
+        // cout << "Li: " << read1 << " bytes dos " << fileSize << "\n";
         if (read1 == 0) {
             inFile.close();
             close(_tcpfd);
@@ -1001,12 +1090,12 @@ int Interface::open() {
         write1 = 0;
         while (read1 > 0) {
             write1 = write(_tcpfd, _buffer, read1);
-            cout << "Escrevi: " << write1 << " bytes dos " << read1 << "\n";
+            // cout << "Escrevi: " << write1 << " bytes dos " << read1 << "\n";
             sent += write1;
             read1 -= write1;
             // cout << "Foram escritos " << sent << " bytes\n";
         }
-        cout << "Faltam " << to_string(fileSize-sent) << " bytes.\n";
+        // cout << "Faltam " << to_string(fileSize-sent) << " bytes.\n";
     }
     inFile.close();
     n = write(_tcpfd, "\n", 1);
@@ -1015,7 +1104,7 @@ int Interface::open() {
         cout << "Hmmmmm!\n";
         return 0;
     }
-    cout << "All data sent!\n";
+    // cout << "All data sent!\n";
 
     // receber merdas
 
@@ -1052,6 +1141,10 @@ int Interface::open() {
 
     if (!checkServerAnswer(n, _buffer, "ROA ")) {
         close(_tcpfd);
+        if (checkServerAnswer(n, _buffer, "ERR\n")) {
+            cout << "Erro interno ao formar a mensagem a enviar ao servidor!\n";
+            return 0;
+        }
         cout << "O servidor de a resposta errada!\n";
         return 0;
     }
@@ -1095,11 +1188,16 @@ int Interface::open() {
         close(_tcpfd);
         cout << "Não foi possivel criar a sua auction.\n";
         return 2;
+    } else if (checkServerAnswer(n - 4, _buffer + 4, "ERR\n")) {
+        cout << "Erro interno ao formar a mensagem a enviar ao servidor!\n";
+        return 0;
     }
 
     close(_tcpfd);
 
-    return 0;
+    cout << "A resposta do servidor esta mal formatada!\n";
+
+    return -1;
 }
 
 int Interface::closea() {
@@ -1120,6 +1218,10 @@ int Interface::closea() {
     // cout << "Eu recebi mas n checkei: " << _buffer; // serve para checkar o q se recebeu
 
     if (!checkServerAnswer(n, _buffer, "RCL ")) {
+        if (checkServerAnswer(n, _buffer, "ERR\n")) {
+            cout << "Erro interno ao formar a mensagem a enviar ao servidor!\n";
+            return 0;
+        }
         cout << "O servidor deu a resposta errada!\n";
         return 0;
     }
@@ -1158,6 +1260,9 @@ int Interface::closea() {
             return 0;
         }
         cout << "A auction que esta a tentar fechar ja se encontra fechada.\n";
+        return 0;
+    } else if (checkServerAnswer(n - 4, _buffer + 4, "ERR\n")) {
+        cout << "Erro interno ao formar a mensagem a enviar ao servidor!\n";
         return 0;
     }
 
@@ -1243,6 +1348,10 @@ int Interface::showAsset() {
     // cout << "Lemos " << n << " caracteres!\n";
     // cout << _buffer;
     if (!checkServerAnswer(n, _buffer, "RSA ")) {
+        if (checkServerAnswer(n, _buffer, "ERR\n")) {
+            cout << "Erro interno ao formar a mensagem a enviar ao servidor!\n";
+            return 0;
+        }
         close(_tcpfd);
         cout << "O servidor de a resposta errada!\n";
         return 0;
@@ -1334,14 +1443,13 @@ int Interface::showAsset() {
         // cout << "_buffer[pause] = " << _buffer[pause] << "\n";
         outFile.write((_buffer + pause), (n - pause));
         size -= (n - pause);
+        fd_set readfd;
+        struct timeval tv;
+        FD_ZERO(&readfd);
+        FD_SET(_tcpfd, &readfd);
+        tv.tv_sec = 10;
+        tv.tv_usec = 0;
         while (size > 0) {
-            fd_set readfd;
-            struct timeval tv;
-            FD_ZERO(&readfd);
-            FD_SET(_tcpfd, &readfd);
-            tv.tv_sec = 10;
-            tv.tv_usec = 0;
-
             // cout << "fiz o select!\n";
             int u = select(_tcpfd + 1, &readfd, NULL, NULL, &tv);
             // cout << "j: " << j << "\n";
@@ -1374,9 +1482,14 @@ int Interface::showAsset() {
         close(_tcpfd);
         cout << "Não foi possivel receber o ficheiro da auction.\n";
         return 0;
+    } else if (checkServerAnswer(n - 4, _buffer + 4, "ERR\n")) {
+        cout << "Erro interno ao formar a mensagem a enviar ao servidor!\n";
+        return 0;
     }
 
     close(_tcpfd);
+
+    cout << "O servidor deu a resposta errada!\n";
 
     return 0;
 }
@@ -1404,6 +1517,10 @@ int Interface::bid() {
     // cout << "Eu recebi mas n checkei: " << _buffer; // serve para checkar o q se recebeu
 
     if (!checkServerAnswer(n, _buffer, "RBD ")) {
+        if (checkServerAnswer(n, _buffer, "ERR\n")) {
+            cout << "Erro interno ao formar a mensagem a enviar ao servidor!\n";
+            return 0;
+        }
         cout << "O servidor deu a resposta errada!\n";
         return 0;
     }
@@ -1442,6 +1559,9 @@ int Interface::bid() {
             return 0;
         }
         cout << "É ilegal dar bid nas suas proprias auctions.\n";
+        return 0;
+    } else if (checkServerAnswer(n - 4, _buffer + 4, "ERR\n")) {
+        cout << "Erro interno ao formar a mensagem a enviar ao servidor!\n";
         return 0;
     }
 
