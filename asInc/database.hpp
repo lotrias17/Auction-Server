@@ -16,13 +16,16 @@
 
 #include "../userInc/Client.hpp"
 #include "../asInc/Auction.hpp"
+#include "../asInc/Bid.hpp"
 
 using namespace std;
 
 string aidToString(int aid);
 string timeToString(tm* time);
+string bidToString(int value);
 int checkUserRegistry(string uid);
-
+string showAuctionRecord(string aid);
+int getAuctionStartValue(string aid);
 
 int addUser(string uid, string password);
 int unregisterUser(string uid);
@@ -37,9 +40,9 @@ vector<Auction> getAllAuctions();
 string addAuction(vector<string> input);
 Auction getAuction(string aid);
 int endAuction(string aid);
-//int deleteAuction();
-//int getAuction();
 
+int addBid(string uid, string aid, int value);
+int getHighestBid(string aid);
 //int addBid();
 //int getBid();
 

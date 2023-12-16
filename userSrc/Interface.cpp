@@ -845,7 +845,7 @@ int Interface::showRecord() {
         char fname[128];
         for (int i = 0; i < 8 * 1024; i++) {
             if (n < pos + i + 1) {
-                cout << "Resposta do servidor mal formatada!\n";
+                cout << "1Resposta do servidor mal formatada!\n";
                 return 0;
             }
             if (_buffer[pos + i] == ' ') {
@@ -860,7 +860,7 @@ int Interface::showRecord() {
         char startvalue[128];
         for (int i = 0; i < 8 * 1024; i++) {
             if (n < pos + i + 1) {
-                cout << "Resposta do servidor mal formatada!\n";
+                cout << "2Resposta do servidor mal formatada!\n";
                 return 0;
             }
             if (_buffer[pos + i] == ' ') {
@@ -874,7 +874,7 @@ int Interface::showRecord() {
 
         char startDate[128];
         if (pos + 20 > n) {
-            cout << "Resposta do servidor mal formatada!\n";
+            cout << "3Resposta do servidor mal formatada!\n";
             return 0;
         }
         for (int i = 0; i < 19; i++) {
@@ -887,7 +887,7 @@ int Interface::showRecord() {
         char timeactive[128];
         for (int i = 0; i < 8 * 1024; i++) {
             if (n < pos + i + 1) {
-                cout << "Resposta do servidor mal formatada!\n";
+                cout << "4Resposta do servidor mal formatada!\n";
                 return 0;
             }
             if (_buffer[pos + i] == ' ') {
@@ -900,11 +900,11 @@ int Interface::showRecord() {
         cout << " e esta/esteve ativa durante " << atoi(timeactive) << " segundos \n";
 
         // biding part!!!!
-        // cout << "O resto do buffer: " << (_buffer + pos) << "\n";
+        //cout << "O resto do buffer: " << (_buffer + pos) << "\n";
 
         for (int i = pos; i < 8 *1024; i++) {
             if (n < i) {
-                cout << "\nResposta do servidor mal formatada!\n";
+                cout << "\n5Resposta do servidor mal formatada!\n";
                 return 0;
             }
             if (_buffer[i] == 'B') {
@@ -921,7 +921,7 @@ int Interface::showRecord() {
                 (void) endDate;
                 i += 2;
                 if (i + 20 > n) {
-                    cout << "\nResposta do servidor mal formatada!\n";
+                    cout << "\n6Resposta do servidor mal formatada!\n";
                     return 0;
                 }
                 for (int j = 0; j < 19; j++) {
@@ -929,7 +929,7 @@ int Interface::showRecord() {
                 }
                 endDate[19] = '\0';
                 if (_buffer[i + 19] != ' ') {
-                    cout << "Resposta do servidor mal formatada!\n";
+                    cout << "7Resposta do servidor mal formatada!\n";
                     return 0;
                 }
                 i += 20;
@@ -938,7 +938,7 @@ int Interface::showRecord() {
                 char endtimeactive[128];
                 for (int k = 0; k < 8 * 1024; k++) {
                     if (n < i + k) {
-                        cout << "Resposta do servidor mal formatada!\n";
+                        cout << "8Resposta do servidor mal formatada!\n";
                         return 0;
                     }
                     if (_buffer[i + k] == '\n') {
@@ -949,7 +949,7 @@ int Interface::showRecord() {
                     endtimeactive[k] = _buffer[i + k];
                 } 
                 if (n != i) {
-                    cout << "Resposta do servidor mal formatdada!\n";
+                    cout << "9Resposta do servidor mal formatdada!\n";
                     return 0;
                 }
                 cout << " e acabou apos " << endtimeactive << " segundos \n";

@@ -180,7 +180,7 @@ vector<Auction> getUserAuctions(string uid, string dir) {
     struct dirent **filelist;
     int numEntries;
     string usedDir = "USERS/" + uid + '/' + dir + '/';
-    string name, path;
+    string aid, name, path;
     
     
     numEntries = scandir(usedDir.c_str(), &filelist, 0, alphasort);
@@ -193,7 +193,7 @@ vector<Auction> getUserAuctions(string uid, string dir) {
         if (name.length() == 7) {
             path = usedDir + name;
 
-            string aid = name.substr(0, name.find_last_of("."));
+            aid = name.substr(0, name.find_last_of("."));
             Auction a = getAuction(aid);
             auctionList.push_back(a);
         }
@@ -304,7 +304,7 @@ string addAuction(vector<string> input) {
 Auction getAuction(string aid) {
     string path = "AUCTIONS/" + aid + "/START_" + aid + ".txt";
     vector<string> input;
-    string uid, irr, duration, startSec, startDate1, startDate2;
+    string uid, aucName, Fname, stValue, duration, startSec, startDate1, startDate2;
     int state = 1;
     ifstream fin;
     ofstream fout;
@@ -315,7 +315,7 @@ Auction getAuction(string aid) {
     fin.open(path);
     if (!fin.good()) return Auction("!");       //aid nao existe
 
-    fin >> uid >> irr >> irr >> irr >> duration >> startDate1 >> startDate2 >> startSec;
+    fin >> uid >> aucName >> Fname >> stValue >> duration >> startDate1 >> startDate2 >> startSec;
     fin.close();
 
     // check if there is END file
@@ -334,7 +334,7 @@ Auction getAuction(string aid) {
         fout.close();
     }
 
-    Auction a = Auction(timeActive, stoi(uid), aid, state);
+    Auction a = Auction(stoi(uid), aucName, Fname, getHighestBid(aid), stoi(stValue), startDate1+" "+startDate2 , timeActive, aid, state);
     
     return a;
 }
@@ -381,4 +381,112 @@ string aidToString(int aid) {
     else return "!"; 
 }
 
+string showAuctionRecord(string aid) {
+    struct dirent **filelist;
+    string name, path, bidDir = "AUCTIONS/"+aid+"/BIDS/";
+    int numEntries;
+    string uid, value, date, time, duration, res;
+    ifstream fin;
+    Auction a = getAuction(aid);
+
+    res = a.toString();
+    res += bidToString(a._duration);
+
+    numEntries = scandir(bidDir.c_str(), &filelist, 0, alphasort);
+    while (numEntries--) {
+        name = filelist[numEntries]->d_name;
+        if (name.length() == 7) {
+            path = bidDir + name;
+            res += "\nB ";
+            fin.open(path, ios_base::app);
+            fin >> uid >> value >> date >> time;
+            fin.close();
+            res += uid+" "+value+" "+date+" "+bidToString(stoi(time));
+        }
+        free(filelist[numEntries]);
+    }
+    free(filelist);
+
+    if (a._state == 0) {
+        path = "AUCTIONS/"+aid+"/END_"+aid+".txt";
+        res += "\nE ";
+
+        fin.open(path);
+        fin >> date >> time >> duration;
+        fin.close();
+
+        res += date+" "+time+" "+bidToString(stoi(duration));
+    }
+
+    return res;
+}   
+
+int getAuctionStartValue(string aid) {
+    ifstream fin;
+    string stValue, irr, path = "AUCTIONS/" + aid + "/START_" + aid + ".txt";
+
+    fin.open(path);
+    if (!fin.good()) return -1;       //aid nao existe
+
+    fin >> irr >> irr >> irr >> stValue >> irr >> irr >> irr >> irr;
+    fin.close();
+    return stoi(stValue);
+}
 // Bid Functions ----------------------------------------------------------------------
+
+string bidToString(int value) {
+    string res, val = to_string(value);
+    int l = val.length();
+
+    for (int i = 0; i < 6; i++) {
+        if (l == i) {
+            res.insert(0, 6-i, '0');
+            return res + val;
+        }
+    }
+    return "!";
+}
+
+int getHighestBid(string aid) {
+    struct dirent **filelist;
+    string name, path, bidDir = "AUCTIONS/"+aid+"/BIDS/";
+    int value, numEntries, highValue;
+    highValue = getAuctionStartValue(aid);
+    if (highValue == -1) return -1;         // aid não existe
+
+    numEntries = scandir(bidDir.c_str(), &filelist, 0, alphasort);
+    if (numEntries <= 2) return highValue;     //aid has no bids
+    while (numEntries--) {
+        name = filelist[numEntries]->d_name;
+        if (name.length() == 7) {
+            path = bidDir + name;
+
+            value = stoi(name.substr(0, name.find_last_of(".")));
+            if (value > highValue) highValue = value;
+        }
+        free(filelist[numEntries]);
+    }
+    free(filelist);
+    return highValue;
+}
+
+int addBid(string uid, string aid, int value) {
+    ofstream fout;
+    time_t fullTime;
+    tm *date;
+    time(&fullTime);
+    date = gmtime(&fullTime);
+    
+    // add auction to USERS/(uid)/BIDDED/
+    fout.open("USERS/" + uid + "/BIDDED/" + aid + ".txt");
+    fout.close();
+
+    // add bid to AUCTIONS/BIDS/
+    Auction a = getAuction(aid);
+    fout.open("AUCTIONS/" + aid + "/BIDS/" + bidToString(value) + ".txt");
+    fout << uid << " " << bidToString(value) << " " << timeToString(date) << " " << a._duration;
+    fout.close();
+    
+    return 0;
+}
+

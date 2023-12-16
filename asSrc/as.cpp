@@ -32,12 +32,13 @@ bool checkFormat(string format, string str) {
     //cout << "INPUT: " << str << ": " << str.size()  << " \n";
     if (format == "uid") return str.size() == 6 && isNumeric(str); 
     else if (format == "password") return str.size() == 8 && isAlphaNumeric(str);
+    else if (format == "aid") return str.size() == 3 && isNumeric(str);
+    else if (format == "bid") return str.size() <= 6 && isNumeric(str);
     else return false;
 }
 
 //UID, type of request, IP, Port
 void verboseOut(vector<string> input, string protocol) {    //output quando em modo verbose
-    //char host[NI_MAXHOST], service[NI_MAXSERV];
     char *ip;
     int prt;
     cout << "\n-------------Received-------------\n";
@@ -97,7 +98,7 @@ void setTcpSocket(char* p) {
     memset(&thints, 0, sizeof(thints));
     thints.ai_family = AF_INET;
     thints.ai_socktype = SOCK_STREAM;
-    thints.ai_flags = AI_NUMERICSERV || AI_PASSIVE;
+    thints.ai_flags = AI_PASSIVE;
 
     tcpErrcode=getaddrinfo(NULL, p, &thints, &tres);
     if (tcpErrcode != 0) {
@@ -272,27 +273,27 @@ int serverResponse(string buffer, string protocol) {
             return -1;
         }
     } else if (input[0] == "SRC") {     //UDP
-        if ((n = processListMyAuctions(input[1])) == -1) {
+        if ((processShowRecord(input[1])) == -1) {
             cerr << "Problema a processar SRC.\n";
             return -1;
         }
     } else if (input[0] == "OPA") {     //TCP
-        if ((n = processOpen(input)) == -1) {
+        if ((processOpen(input)) == -1) {
             cerr << "Problema a processar OPA.\n";
             return -1;
         }
     } else if (input[0] == "CLS") {     //TCP
-        if ((n = processClose(input[1], input[3])) == -1) {
+        if ((processClose(input[1], input[3])) == -1) {
             cerr << "Problema a processar CLS.\n";
             return -1;
         }
     } else if (input[0] == "SAS") {     //TCP
-        if ((n = processListMyAuctions(input[1])) == -1) {
+        if ((processBid(input[1], input[3], input[4])) == -1) {
             cerr << "Problema a processar SAS.\n";
             return -1;
         }
     } else if (input[0] == "BID") {     //TCP
-        if ((n = processListMyAuctions(input[1])) == -1) {
+        if ((processBid(input[1], input[3], input[4])) == -1) {
             cerr << "Problema a processar BID.\n";
             return -1;
         }
@@ -498,11 +499,37 @@ int processList() {
     return 0;
 }
 
-// int show_record() {}
+int processShowRecord(string aid) {
+    if (!checkFormat("aid", aid)) {
+        cerr << "Poorly formatted request.\n";
+        return -1;
+    }
+
+    string ans = "RRC NOK\n";
+
+    // Check if aid exists (RRC NOK)
+    Auction a = getAuction(aid);
+    if (a._aid == "!") {
+        n=sendto(ufd,ans.c_str(),8,0,(struct sockaddr*) &udpAddr, addrlen);
+        if (n==-1) cout << "Problema no sendto: RRC NOK\n";
+        return 1;
+    }
+
+    //  (RRC OK)
+    ans = "RRC OK ";
+    ans += showAuctionRecord(aid);
+    ans += "\n";
+
+    cout << "SENT:" << ans << ":\n";
+
+    n=sendto(ufd,ans.c_str(),ans.size(),0,(struct sockaddr*) &udpAddr, addrlen);
+    if (n==-1) cout << "Problema no sendto: RRC OK\n";
+    return 1;
+}
 
 // TCP functions ------------------------------------
 
-int processOpen(vector<string> input) {
+int processOpen(vector<string> input) {         // CHECK FNAME AND FSIZE!!!!!!!!!!!!!!!!!!!
     string uid = input[1];
     string password = input[2];
     string name = input[3];
@@ -600,25 +627,48 @@ int processClose(string uid, string aid) {
 }
 
 int processBid(string uid, string aid, string bid) {
-    (void) aid;
-    (void) bid;
-    if (!checkFormat("uid", uid)) {
+    if (!checkFormat("uid", uid) || !checkFormat("aid", aid) || !checkFormat("bid", bid)) {
         cerr << "Poorly formatted request.\n";
         return -1;
     }
-    return 0;
+    
+    Client c = getUser(uid);
+    if (c._password == "problem") return -1;
+
+    Auction a = getAuction(aid);
+
     //check if uid is logged in (RBD NLG)
+    if (c._status != "logged in") {
+        n=write(newfd,"RBD NLG\n", 8);   // RBD NLG
+        if (n==-1) cout << "Problema no sendto: RBD NLG\n";
+        return 1;
+    }
 
-    //check if aid is not ENDed (RBD NOK)
+    //check if aid exists and is active (RBD NOK)
+    if (a._state == 0 || a._aid == "!") {
+        n=write(newfd,"RBD NOK\n", 8);   // RBD NOK
+        if (n==-1) cout << "Problema no sendto: RBD NOK\n";
+        return 1;
+    }
 
-    //check if aid doesnt belong to uid (RBD ILG)
+    //check if aid belongs to uid (RBD ILG)
+    if (a._uid == stoi(uid)) {
+        n=write(newfd,"RBD ILG\n", 8);   // RBD ILG
+        if (n==-1) cout << "Problema no sendto: RBD ILG\n";
+        return 1;
+    }
 
     //check if bid is higher than previous highest bid (RBD REF)
-
-    // RBD ACC, aid.highestBid = bid;
-
+    if (stoi(bid) <= a._highValue) {
+        n=write(newfd,"RBD REF\n", 8);   // RBD REF
+        if (n==-1) cout << "Problema no sendto: RBD REF\n";
+    } else {    // RBD ACC, aid._highValue = bid;
+        addBid(uid, aid, stoi(bid));
+        n=write(newfd,"RBD ACC\n", 8);   // RBD ACC
+        if (n==-1) cout << "Problema no sendto: RBD ACC\n";
+    }
+    return 1;
 }
-
 
 //int processShowAsset() {}
 

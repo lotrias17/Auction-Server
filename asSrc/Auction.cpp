@@ -13,9 +13,15 @@ Auction::Auction(int uid, string aid, int state) {
     _state = state;
 }
 
-Auction::Auction(int timeActive, int uid, string aid, int state) {
-    _duration = timeActive;
+// Auction(stoi(uid), aucName, Fname, stoi(value), startDate1+" "+startDate2 , timeActive, aid, state);
+Auction::Auction(int uid, string name, string Fname, int highVal, int stVal, string date, int timeActive, string aid, int state) {
     _uid = uid;
+    _name = name;
+    _fname = Fname;
+    _highValue = highVal;
+    _startValue = stVal;
+    _date = date;
+    _duration = timeActive;
     _aid = aid;
     _state = state;
 }
@@ -25,9 +31,8 @@ Auction::Auction(string aid) {
 }
 
 string Auction::toString() {
-    return "AID " + _aid + "\nNome: " + _name + "\nValue: " +
-    to_string(_startValue) + "\nDuration: " + to_string(_duration) + 
-    "\nState: " + to_string(_state) + '\n';
+    return to_string(_uid)+" "+_name+" "+_fname+" "+to_string(_startValue)
+    +" "+_date+" ";
 }
 
 string Auction::simpleToString() {

@@ -45,12 +45,12 @@ int processLogout(string uid);
 int processUnregister(string uid);
 int processListMyAuctions(string uid);
 int processListMyBids(string uid);
+int processShowRecord(string aid);
 int processList();
-int show_record();
 
 int processOpen(vector<string> input);
 int processClose(string uid, string aid);
-int processBid();
+int processBid(string uid, string aid, string bid);
 int processShowAsset();
 
 
