@@ -230,14 +230,14 @@ int serverResponse(string buffer, string protocol) {
     stringstream ss;
     ss << buffer;
     
-    //cout << "Buffer:\n";
+    cout << "Buffer:\n";
     while(getline(ss, s, ' ')) {
+        s = s.substr(0, s.find('\n'));
         input.push_back(s);
         n++;
-        //cout << s << '\n';
+        cout << s << "!\n";
     }
-    //cout << ":\n";
-    input[n-1].pop_back();
+    cout << ":\n";
 
     if (verbose) verboseOut(input, protocol);
 
@@ -247,12 +247,12 @@ int serverResponse(string buffer, string protocol) {
             return -1;
         } 
     } else if (input[0] == "LOU") {     //UDP
-        if ((processLogout(input[1])) == -1) {
+        if ((processLogout(input[1], input[2])) == -1) {
             cerr << "Problema a processar logout.\n";
             return -1;
         }
     } else if (input[0] == "UNR") {     //UDP
-        if ((processUnregister(input[1])) == -1) {
+        if ((processUnregister(input[1], input[2])) == -1) {
             cerr << "Problema a processar unregister.\n";
             return -1;
         }
@@ -283,17 +283,17 @@ int serverResponse(string buffer, string protocol) {
             return -1;
         }
     } else if (input[0] == "CLS") {     //TCP
-        if ((processClose(input[1], input[3])) == -1) {
+        if ((processClose(input[1], input[2], input[3])) == -1) {
             cerr << "Problema a processar CLS.\n";
             return -1;
         }
     } else if (input[0] == "SAS") {     //TCP
-        if ((processBid(input[1], input[3], input[4])) == -1) {
+        if ((processList()) == -1) {
             cerr << "Problema a processar SAS.\n";
             return -1;
         }
     } else if (input[0] == "BID") {     //TCP
-        if ((processBid(input[1], input[3], input[4])) == -1) {
+        if ((processBid(input[1], input[2], input[3], input[4])) == -1) {
             cerr << "Problema a processar BID.\n";
             return -1;
         }
@@ -352,14 +352,19 @@ int processLogin(string uid, string password) {
     return 0;
 }
 
-int processLogout(string uid) {
-    if (!checkFormat("uid", uid)) {
+int processLogout(string uid, string password) {
+    if (!checkFormat("uid", uid) || !checkFormat("password", password)) {
         cerr << "Poorly formatted request.\n";
         return -1;
     }
 
     Client c = getUser(uid);
     if (c._password == "problem") return -1;
+    if (c._password != password) {
+        n=sendto(ufd,"RLO NOK\n",8,0,(struct sockaddr*) &udpAddr, addrlen);
+        if (n==-1) cout << "Problema no sendto: RLO NOK\n";
+        return 0;
+    }
 
     //enviar ACK
     if (c._status == "unregistered") {  //RLO UNR
@@ -383,15 +388,20 @@ int processLogout(string uid) {
     return 0;
 }
 
-int processUnregister(string uid) {
+int processUnregister(string uid, string password) {
 
-    if (!checkFormat("uid", uid)) {
+    if (!checkFormat("uid", uid) || !checkFormat("password", password)) {
         cerr << "Poorly formatted request.\n";
         return -1;
     }
 
     Client c = getUser(uid);
     if (c._password == "problem") return -1;
+    if (c._password != password) {
+        n=sendto(ufd,"RUR NOK\n",8,0,(struct sockaddr*) &udpAddr, addrlen);
+        if (n==-1) cout << "Problema no sendto: RUR NOK\n";
+        return 0;
+    }
 
     //enviar ACK
     if (c._status == "unregistered") {  //RUR UNR
@@ -562,6 +572,11 @@ int processOpen(vector<string> input) {         // CHECK FNAME AND FSIZE!!!!!!!!
     //check if user is logged in
     Client c = getUser(uid);
     if (c._password == "problem") return -1;
+    if (c._password != password) {
+        n=sendto(ufd,"ROA NOK\n",8,0,(struct sockaddr*) &udpAddr, addrlen);
+        if (n==-1) cout << "Problema no sendto: ROA NOK\n";
+        return 0;
+    }
 
     if (c._status != "logged in") {
         //ROA NLG if uid is not logged in
@@ -584,7 +599,7 @@ int processOpen(vector<string> input) {         // CHECK FNAME AND FSIZE!!!!!!!!
     return 0;
 }
 
-int processClose(string uid, string aid) { 
+int processClose(string uid, string password, string aid) { 
     if (!checkFormat("uid", uid)) {
         cerr << "Poorly formatted request.\n";
         return -1;
@@ -593,6 +608,11 @@ int processClose(string uid, string aid) {
     //check if uid is logged in (RCL NLG)
     Client c = getUser(uid);
     if (c._password == "problem") return -1;
+    if (c._password != password) {
+        n=sendto(ufd,"RCL NOK\n",8,0,(struct sockaddr*) &udpAddr, addrlen);
+        if (n==-1) cout << "Problema no sendto: RCL NOK\n";
+        return 0;
+    }
 
     if (c._status != "logged in") {
         n=write(newfd,"RCL NLG\n", 8);   // RCL NLG
@@ -626,14 +646,20 @@ int processClose(string uid, string aid) {
     return 0;
 }
 
-int processBid(string uid, string aid, string bid) {
-    if (!checkFormat("uid", uid) || !checkFormat("aid", aid) || !checkFormat("bid", bid)) {
+int processBid(string uid, string password, string aid, string bid) {
+    cout << "PASSWORD: " << password << ":\n"; 
+    if (!checkFormat("uid", uid) || !checkFormat("aid", aid) || !checkFormat("bid", bid) || !checkFormat("password", password)) {
         cerr << "Poorly formatted request.\n";
         return -1;
     }
     
     Client c = getUser(uid);
     if (c._password == "problem") return -1;
+    if (c._password != password) {
+        n=sendto(ufd,"RBD NOK\n",8,0,(struct sockaddr*) &udpAddr, addrlen);
+        if (n==-1) cout << "Problema no sendto: RBD NOK\n";
+        return 0;
+    }
 
     Auction a = getAuction(aid);
 
@@ -658,6 +684,7 @@ int processBid(string uid, string aid, string bid) {
         return 1;
     }
 
+    cout << "BID vs HIGHVAL: " << bid << " vs " << a._highValue << ":\n";
     //check if bid is higher than previous highest bid (RBD REF)
     if (stoi(bid) <= a._highValue) {
         n=write(newfd,"RBD REF\n", 8);   // RBD REF

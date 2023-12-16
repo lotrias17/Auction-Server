@@ -22,7 +22,6 @@ using namespace std;
 
 string aidToString(int aid);
 string timeToString(tm* time);
-string bidToString(int value);
 int checkUserRegistry(string uid);
 string showAuctionRecord(string aid);
 int getAuctionStartValue(string aid);

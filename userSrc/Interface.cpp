@@ -700,11 +700,11 @@ int Interface::printBid(int n, int i) {
     int l = i;
     i += 2;
     if (i > n) {
-        cout << "Resposta do servidor mal formatada!\n";
+        cout << "AResposta do servidor mal formatada!\n";
         return 0;
     }
     if (i + 7 > n) {
-        cout << "Resposta do servidor mal formatada!\n";
+        cout << "BResposta do servidor mal formatada!\n";
         return 0;
     }
     char uid[7];
@@ -713,7 +713,7 @@ int Interface::printBid(int n, int i) {
     }
     uid[6] = '\0';
     if (_buffer[i + 6] != ' ') {
-        cout << "Resposta do servidor mal formatada!\n";
+        cout << "CResposta do servidor mal formatada!\n";
         return 0;
     }
     i += 7;
@@ -723,7 +723,7 @@ int Interface::printBid(int n, int i) {
     char bidvalue[128];
     for (int k = 0; k < 8 * 1024; k++) {
         if (n < i + k + 1) {
-            cout << "Resposta do servidor mal formatada!\n";
+            cout << "DResposta do servidor mal formatada!\n";
             return 0;
         }
         if (_buffer[i + k] == ' ') {
@@ -735,13 +735,13 @@ int Interface::printBid(int n, int i) {
         bidvalue[k] = _buffer[i + k];
     }
     if (!left) {
-        cout << "Resposta do servidor mal formatada!\n";
+        cout << "EResposta do servidor mal formatada!\n";
         return 0;
     }
     cout << " deu bid com o valor " << bidvalue;
 
     if (i + 20 > n) {
-        cout << "Resposta do servidor mal formatada!\n";
+        cout << "FResposta do servidor mal formatada!\n";
         return 0;
     }
     char bDate[20];
@@ -750,7 +750,7 @@ int Interface::printBid(int n, int i) {
     }
     bDate[19] = '\0';
     if (_buffer[i + 19] != ' ') {
-        cout << "Resposta do servidor mal formatada!\n";
+        cout << "GResposta do servidor mal formatada!\n";
         return 0;
     }
     i += 20;
@@ -761,7 +761,7 @@ int Interface::printBid(int n, int i) {
     char endtimeactive[128];
     for (int k = 0; k < 8 * 1024; k++) {
         if (n < i + k + 1) {
-            cout << "Resposta do servidor mal formatada!\n";
+            cout << "HResposta do servidor mal formatada!\n";
             return 0;
         }
         if (_buffer[i + k] == ' ') {
@@ -773,7 +773,7 @@ int Interface::printBid(int n, int i) {
         endtimeactive[k] = _buffer[i + k];
     }
     if (!left) {
-        cout << "Resposta do servidor mal formatada!\n";
+        cout << "IResposta do servidor mal formatada!\n";
         return 0;
     }
     cout << ", " << atoi(endtimeactive) << " segundos apos o inicio da auction!\n";
@@ -816,7 +816,7 @@ int Interface::showRecord() {
             }
             uid[6] = '\0';
         } else {
-            cout << "Resposta do servidor mal formatada!\n";
+            cout << "A.Resposta do servidor mal formatada!\n";
             return 0;
         }
         string hihi = uid;
@@ -830,7 +830,7 @@ int Interface::showRecord() {
         char name[128];
         for (int i = 0; i < 8 * 1024; i++) {
             if (n < pos + i + 1) {
-                cout << "Resposta do servidor mal formatada!\n";
+                cout << "B.Resposta do servidor mal formatada!\n";
                 return 0;
             }
             if (_buffer[pos + i] == ' ') {
@@ -900,20 +900,22 @@ int Interface::showRecord() {
         cout << " e esta/esteve ativa durante " << atoi(timeactive) << " segundos \n";
 
         // biding part!!!!
-        //cout << "O resto do buffer: " << (_buffer + pos) << "\n";
+        //cout << "O resto do buffer: " << (_buffer + pos) << ":\n";
 
         for (int i = pos; i < 8 *1024; i++) {
             if (n < i) {
                 cout << "\n5Resposta do servidor mal formatada!\n";
                 return 0;
             }
+
+            if (_buffer[i] == '\0') break;    // end case
             if (_buffer[i] == 'B') {
                 int j = printBid(n, i);
                 if (j == -1) {
                     return 0;
                 }
                 i += j;
-                cout << "O resto do buffer after bid: " << _buffer + i; 
+                //cout << "O resto do buffer after bid: " << _buffer + i << "!\n"; 
                 continue;
             }
             if (_buffer[i] == 'E') {
@@ -941,15 +943,16 @@ int Interface::showRecord() {
                         cout << "8Resposta do servidor mal formatada!\n";
                         return 0;
                     }
+                    //cout << "BUF:" << _buffer[i+k] << ":\n";
                     if (_buffer[i + k] == '\n') {
                         endtimeactive[k] = '\0';
-                        i += k + 1;
+                        i += k+1;
                         break;
                     }
                     endtimeactive[k] = _buffer[i + k];
                 } 
                 if (n != i) {
-                    cout << "9Resposta do servidor mal formatdada!\n";
+                    cout << "9Resposta do servidor mal formatada!\n";
                     return 0;
                 }
                 cout << " e acabou apos " << endtimeactive << " segundos \n";

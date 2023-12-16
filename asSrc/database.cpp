@@ -27,6 +27,7 @@ Client getUser(string uid) {
     int reg = checkUserRegistry(uid);
 
     if (reg != 0) return Client(uid, "unr");    //unregistered user
+    
 
     string status = "logged in";
 
@@ -390,18 +391,17 @@ string showAuctionRecord(string aid) {
     Auction a = getAuction(aid);
 
     res = a.toString();
-    res += bidToString(a._duration);
 
     numEntries = scandir(bidDir.c_str(), &filelist, 0, alphasort);
     while (numEntries--) {
         name = filelist[numEntries]->d_name;
-        if (name.length() == 7) {
+        if (name.length() > 4) {
             path = bidDir + name;
-            res += "\nB ";
+            res += "\n B ";
             fin.open(path, ios_base::app);
-            fin >> uid >> value >> date >> time;
+            fin >> uid >> value >> date >> time >> duration;
             fin.close();
-            res += uid+" "+value+" "+date+" "+bidToString(stoi(time));
+            res += uid+" "+value+" "+date+" "+time+" "+duration+" ";
         }
         free(filelist[numEntries]);
     }
@@ -409,13 +409,13 @@ string showAuctionRecord(string aid) {
 
     if (a._state == 0) {
         path = "AUCTIONS/"+aid+"/END_"+aid+".txt";
-        res += "\nE ";
+        res += "\n E ";
 
         fin.open(path);
         fin >> date >> time >> duration;
         fin.close();
 
-        res += date+" "+time+" "+bidToString(stoi(duration));
+        res += date+" "+time+" "+duration+" ";
     }
 
     return res;
@@ -434,19 +434,6 @@ int getAuctionStartValue(string aid) {
 }
 // Bid Functions ----------------------------------------------------------------------
 
-string bidToString(int value) {
-    string res, val = to_string(value);
-    int l = val.length();
-
-    for (int i = 0; i < 6; i++) {
-        if (l == i) {
-            res.insert(0, 6-i, '0');
-            return res + val;
-        }
-    }
-    return "!";
-}
-
 int getHighestBid(string aid) {
     struct dirent **filelist;
     string name, path, bidDir = "AUCTIONS/"+aid+"/BIDS/";
@@ -458,7 +445,7 @@ int getHighestBid(string aid) {
     if (numEntries <= 2) return highValue;     //aid has no bids
     while (numEntries--) {
         name = filelist[numEntries]->d_name;
-        if (name.length() == 7) {
+        if (name.length() > 4) {
             path = bidDir + name;
 
             value = stoi(name.substr(0, name.find_last_of(".")));
@@ -483,8 +470,8 @@ int addBid(string uid, string aid, int value) {
 
     // add bid to AUCTIONS/BIDS/
     Auction a = getAuction(aid);
-    fout.open("AUCTIONS/" + aid + "/BIDS/" + bidToString(value) + ".txt");
-    fout << uid << " " << bidToString(value) << " " << timeToString(date) << " " << a._duration;
+    fout.open("AUCTIONS/" + aid + "/BIDS/" + to_string(value) + ".txt");
+    fout << uid << " " << to_string(value) << " " << timeToString(date) << " " << a._duration;
     fout.close();
     
     return 0;

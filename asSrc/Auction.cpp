@@ -32,7 +32,7 @@ Auction::Auction(string aid) {
 
 string Auction::toString() {
     return to_string(_uid)+" "+_name+" "+_fname+" "+to_string(_startValue)
-    +" "+_date+" ";
+    +" "+_date+" "+to_string(_duration);
 }
 
 string Auction::simpleToString() {

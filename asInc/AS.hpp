@@ -41,16 +41,16 @@ bool isNumeric(string str);
 bool checkFormat(string format, string str);
 
 int processLogin(string uid, string password);
-int processLogout(string uid);
-int processUnregister(string uid);
+int processLogout(string uid, string password);
+int processUnregister(string uid, string password);
 int processListMyAuctions(string uid);
 int processListMyBids(string uid);
 int processShowRecord(string aid);
 int processList();
 
 int processOpen(vector<string> input);
-int processClose(string uid, string aid);
-int processBid(string uid, string aid, string bid);
+int processClose(string uid, string password, string aid);
+int processBid(string uid, string password, string aid, string bid);
 int processShowAsset();
 
 
