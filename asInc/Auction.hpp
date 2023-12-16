@@ -8,6 +8,7 @@ using namespace std;
 
 class Auction {
     public:
+    Auction(int timeActive, int uid, string aid, int state); // for getAuction
     Auction(int uid, string name, int stvl, int dur);
     Auction(int uid, string aid, int state);   //for getUserAuctions
     Auction(string aid);
@@ -21,5 +22,6 @@ class Auction {
     string simpleToString();
 };
 
+int getAuctionTimeActive(int startSec, int duration, int currSec);
 
 #endif

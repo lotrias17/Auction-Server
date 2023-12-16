@@ -17,17 +17,17 @@
 #include "../userSrc/Client.cpp"
 
 #include "database.hpp"
+#include "tcpBuffer.hpp"
 
 using namespace std;
 
-int port = 58011;   //should be 58000 + Group Number
+int port = 58014;
 int newfd, ufd, tfd, udpErrcode, tcpErrcode, outFds;
 ssize_t n;
 socklen_t addrlen;
 struct addrinfo uhints,*ures, thints, *tres;
 struct sockaddr_in udpAddr, tcpAddr;
 bool verbose = false;
-unordered_map<string, Client*> userList;
 fd_set inputs, testFds;
 
 void verboseOut(vector<string> input, string protocol);
@@ -49,7 +49,7 @@ int processList();
 int show_record();
 
 int processOpen(vector<string> input);
-int processClose();
+int processClose(string uid, string aid);
 int processBid();
 int processShowAsset();
 

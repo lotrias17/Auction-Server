@@ -177,8 +177,6 @@ int setUser(Client c) {
 
 vector<Auction> getUserAuctions(string uid, string dir) {
     vector<Auction> auctionList;
-    FILE* fp;
-    char state[1];
     struct dirent **filelist;
     int numEntries;
     string usedDir = "USERS/" + uid + '/' + dir + '/';
@@ -196,16 +194,8 @@ vector<Auction> getUserAuctions(string uid, string dir) {
             path = usedDir + name;
 
             string aid = name.substr(0, name.find_last_of("."));
-
-            //read file for state
-            fp = fopen(path.c_str(), "r");
-            if (fp == NULL) {       //problema no fopen
-                auctionList.erase(auctionList.begin(), auctionList.end());
-                return auctionList;     
-            } 
-            fread(state, sizeof(state), 1, fp);
-
-            auctionList.push_back(Auction(stoi(uid), aid, atoi(state)));
+            Auction a = getAuction(aid);
+            auctionList.push_back(a);
         }
         free(filelist[numEntries]);
     }
@@ -213,25 +203,24 @@ vector<Auction> getUserAuctions(string uid, string dir) {
     return auctionList;
 }
 
-vector<Auction> getAllAuctions() {      //through HOSTED in every client
+vector<Auction> getAllAuctions() {
     vector<Auction> auctionList, auxList;
-    string uid, userDir = "USERS/";
+    string aid, aucDir = "AUCTIONS/";
     struct dirent **filelist;
     int numEntries;
 
-    numEntries = scandir(userDir.c_str(), &filelist, 0, alphasort);
+    numEntries = scandir(aucDir.c_str(), &filelist, 0, alphasort);
 
-    cout << "NUM:" << to_string(numEntries) << '\n';
-
-    if (numEntries <= 2) {
-        auctionList.push_back(Auction("-1"));     //there are no clients
+    if (numEntries <= 3) {
+        cout << "NO Auctions\n";
+        auctionList.push_back(Auction("-1"));     //there are no auctions
         return auctionList;
     }
     while (numEntries--) {
-        uid = filelist[numEntries]->d_name;
-        if (uid.length() == 6) {
-            auxList = getUserAuctions(uid, "HOSTED");
-            auctionList.insert(auctionList.end(), auxList.begin(), auxList.end());
+        aid = filelist[numEntries]->d_name;
+        if (aid.length() == 3) {
+            Auction tmp = getAuction(aid);
+            auctionList.push_back(tmp);
         }
     }
     return auctionList;
@@ -249,7 +238,7 @@ string listAuctions(vector<Auction> list) {
     return res;
 }
 
-int addAuction(vector<string> input) {
+string addAuction(vector<string> input) {
     string uid = input[1];
     string password = input[2];
     string name = input[3];
@@ -258,51 +247,120 @@ int addAuction(vector<string> input) {
     string Fname = input[6];
     string Fsize = input[7];
     string Fdata = input[8];
-    FILE* fp;
     time_t fullTime;
     struct tm* date;
+    int numEntries;
+    struct dirent **filelist;
+    ofstream file;
+
+    // determine currAid: numEntries - 3 (. .. and .gitignore)
+    numEntries = scandir("AUCTIONS/", &filelist, 0, alphasort);
+    currAid = numEntries - 3;
 
     Auction auc = Auction(stoi(uid), name, stoi(startValue), stoi(timeActive));
     if (currAid < 1000) auc._aid = ++currAid;
-    else return -1;
+    else return aidToString(-1);
 
     string aucDir = "AUCTIONS/" + aidToString(currAid) + "/";
     // criar diretoria (aid)/
-    if ((mkdir(aucDir.c_str(), 0700)) == -1) return -1;    //problema a fazer aucDir
+    if ((mkdir(aucDir.c_str(), 0700)) == -1) return aidToString(-1);    //problema a fazer aucDir
 
     // criar diretoria BIDS/ e diretoria ASSET/
     string path = aucDir + "BIDS/";
-    if ((mkdir(path.c_str(), 0700)) == -1) return -1;    //problema a fazer BIDS/
+    if ((mkdir(path.c_str(), 0700)) == -1) return aidToString(-1);    //problema a fazer BIDS/
 
     // criar START_(aid).txt com UID name Fname startValue timeactive startDateTime startFullTime
     time(&fullTime);
     date = gmtime(&fullTime);
-    
+
     string s = uid + " " + name + " " + Fname + " " + startValue + " " + timeActive + " "
     + timeToString(date) + " " + to_string(fullTime);
 
-    path = aucDir + "START_" + to_string(currAid) + ".txt";
-    fp = fopen(path.c_str(), "w");
-    if (fp == NULL) return -1;
-    fwrite(Fdata.c_str(), sizeof(char), stoi(Fsize), fp);
-    fclose(fp);
+    path = aucDir + "START_" + aidToString(currAid) + ".txt";
+
+    file.open(path.c_str());
+    file << s;
+    file.close();
 
     path = aucDir + "ASSET/";
-    if ((mkdir(path.c_str(), 0700)) == -1) return -1;    //problem making userDir
+    if ((mkdir(path.c_str(), 0700)) == -1) return aidToString(-1);    //problem making userDir
 
     path += Fname;
     
     // adicionar asset com Fname, Fsize e Fdata à diretoria ASSET/
-    cout << "Vou tentar escrever!\n";
-    ofstream file;
-
-    file.open(path.c_str());
-
+    file.open(path.c_str(), ios::binary);
     file << Fdata;
-
     file.close();
 
-    return currAid;
+    // adicionar (aid).txt na diretoria USERS/(uid)/HOSTED/
+    path = "USERS/" + uid + "/HOSTED/" + aidToString(currAid) + ".txt";
+
+    file.open(path);
+    file.close();
+
+    return aidToString(currAid);
+}
+
+Auction getAuction(string aid) {
+    string path = "AUCTIONS/" + aid + "/START_" + aid + ".txt";
+    vector<string> input;
+    string uid, irr, duration, startSec, startDate1, startDate2;
+    int state = 1;
+    ifstream fin;
+    ofstream fout;
+    tm* endDate;
+    int currSec, timeActive;
+    time_t endSec;
+
+    fin.open(path);
+    if (!fin.good()) return Auction("!");       //aid nao existe
+
+    fin >> uid >> irr >> irr >> irr >> duration >> startDate1 >> startDate2 >> startSec;
+    fin.close();
+
+    // check if there is END file
+    fin.open("AUCTIONS/" + aid + "/END_" + aid + ".txt");
+    if (fin.good()) state = 0;       //ja existe END_(aid).txt
+    fin.close();
+
+    currSec = time(NULL);
+    timeActive = getAuctionTimeActive(stoi(startSec), stoi(duration), currSec);
+    if (timeActive >= stoi(duration) && state != 0) {       // auction (aid) has expired, add END_(aid).txt
+        state = 0;
+        endSec = stol(startSec) + stol(duration);
+        endDate = gmtime(&endSec);
+        fout.open("AUCTIONS/" + aid + "/END_" + aid + ".txt");
+        fout << timeToString(endDate) << " " << duration;
+        fout.close();
+    }
+
+    Auction a = Auction(timeActive, stoi(uid), aid, state);
+    
+    return a;
+}
+
+int endAuction(string aid) {
+    ofstream fout;
+    string endDate, endSec;    
+    time_t fullTime;
+    //int startSec, duration, currSec;
+    
+    Auction a = getAuction(aid);
+
+    if (a._state == 0) return 0;       // aid already ended
+
+    // end auction manually
+    time(&fullTime);
+    
+    endSec = to_string(a._duration);
+    endDate = timeToString(gmtime(&fullTime));
+
+    // create END_(aid).txt
+    fout.open("AUCTIONS/" + aid + "/END_" + aid + ".txt");
+    fout << endDate << " " << endSec << '\n'; 
+    fout.close();
+
+    return 1;
 }
 
 string timeToString(tm* tm) {
@@ -315,9 +373,11 @@ string timeToString(tm* tm) {
 
 string aidToString(int aid) {
     string id = to_string(aid);
-    if (id.length() == 3) return id;
-    else if (id.length() == 2) return "0" + id;
-    else if (id.length() == 1) return "00" + id;
+    int l = id.length();
+
+    if (l == 3) return id;
+    else if (l == 2) return "0" + id;
+    else if (l == 1) return "00" + id;
     else return "!"; 
 }
 

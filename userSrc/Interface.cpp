@@ -1112,7 +1112,7 @@ int Interface::open() {
     struct timeval tv;
     FD_ZERO(&readfd);
     FD_SET(_tcpfd, &readfd);
-    tv.tv_sec = 3;
+    tv.tv_sec = 5;
     tv.tv_usec = 0;
 
     // cout << "fiz o select!\n";

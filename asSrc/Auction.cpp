@@ -13,6 +13,13 @@ Auction::Auction(int uid, string aid, int state) {
     _state = state;
 }
 
+Auction::Auction(int timeActive, int uid, string aid, int state) {
+    _duration = timeActive;
+    _uid = uid;
+    _aid = aid;
+    _state = state;
+}
+
 Auction::Auction(string aid) {
     _aid = aid;
 }
@@ -25,4 +32,10 @@ string Auction::toString() {
 
 string Auction::simpleToString() {
     return _aid + " " + to_string(_state);
+}
+
+int getAuctionTimeActive(int startSec, int duration, int currSec) {
+    if (currSec < startSec + duration) return currSec - startSec;
+
+    return duration;
 }

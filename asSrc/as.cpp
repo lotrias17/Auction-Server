@@ -114,13 +114,12 @@ void setTcpSocket(char* p) {
         exit(1);
     }
 
-    if (listen(tfd, 10) == -1) exit(1);
+    if (listen(tfd, 40) == -1) exit(1);
     return;
 }
 
 void receiveRequest() {
     char buffer[128];
-    char in_str[128];
     struct timeval timeout;
 
     char p[8];
@@ -139,7 +138,7 @@ void receiveRequest() {
         testFds = inputs;    //reload mask
 
         memset((void *)&timeout,0,sizeof(timeout));     //timeout
-        timeout.tv_sec=10;    
+        timeout.tv_sec=2;    
 
         outFds = select(FD_SETSIZE, &testFds, NULL, NULL, (struct timeval*) &timeout);
 
@@ -151,52 +150,66 @@ void receiveRequest() {
                 perror("select");
                 break;
             default:
-                if (FD_ISSET(0, &testFds)) {    //Useless?
-                    fgets(in_str,50,stdin);
-                    printf("---Input at keyboard: %s\n",in_str);
-                } else if (FD_ISSET(ufd, &testFds)) {
-                    addrlen = sizeof(udpAddr);
-                    memset(buffer, 0, sizeof buffer);
-                    n=recvfrom(ufd,buffer,128,0,(struct sockaddr*) &udpAddr, &addrlen);
-                    if (n==-1) cout << "Problema no recvfrom.\n";
-                    else {
-                        int m = serverResponse(buffer, "udp");
-                        if (m == -1) {
-                            //cerr << "Problema ao processar request.\n";
-                            n=sendto(ufd,"ERR\n",4,0,(struct sockaddr*) &udpAddr, addrlen);
-                            if (n==-1) {
-                                cout << "Problema no sendto: ERR\n";
-                            }  
+                for (int i = 0; i < FD_SETSIZE; i++) {
+                    if (FD_ISSET(i, &testFds)) {
+                        if (i == ufd){
+                            addrlen = sizeof(udpAddr);
+                            memset(buffer, 0, sizeof buffer);
+                            n=recvfrom(ufd,buffer,128,0,(struct sockaddr*) &udpAddr, &addrlen);
+                            if (n==-1) cout << "Problema no recvfrom.\n";
+                            else {
+                                int m = serverResponse(buffer, "udp");
+                                if (m == -1) {
+                                    //cerr << "Problema ao processar request.\n";
+                                    n=sendto(ufd,"ERR\n",4,0,(struct sockaddr*) &udpAddr, addrlen);
+                                    if (n==-1) {
+                                        cout << "Problema no sendto: ERR\n";
+                                    }  
+                                }
+                            }
+                        } else if (i == tfd) {
+                            addrlen = sizeof(tcpAddr);
+                            if ((newfd = accept(tfd, (struct sockaddr*) &tcpAddr, &addrlen)) == -1) perror("accept");
+
+                            FD_SET(newfd, &inputs);   
+                        } else {
+                            char tmp[4];
+                            // tcp_info (fd, buffer, bufPos)
+                            tcpBuffer *buf = getTcpBuffer(i);
+
+                            /* if (toWrite) {
+                                write(buf->_fd, path, fsize)
+                            }
+                            */
+
+                            // 1 read em vez do while 
+                            if (read(buf->_fd, tmp, 3) == -1) {
+                                cerr << "Erro a ler buffer TCP.\n";
+                                exit(1);
+                            }
+                            buf->update(tmp);
+                            
+                            // exceção de OPA
+                            if (buf->_buffer == "OPA") {
+                                // check for 7(?) spaces -> addAuction
+                                // start writing to file, from read (bool toWrite)
+                                // write(buf->_fd,)
+                            }
+
+                            // só vai para serverResponse se apanhar \n   
+                            if (buf->_buffer.find('\n') != string::npos) {
+                                if (serverResponse(buf->_buffer, "tcp") == -1) {
+                                    //cerr << "Problema ao processar request.\n";
+                                    if (write(i, "ERR\n", 4) == -1) perror("tcp write");
+                                }
+                                // response is handled by specific functions: serverResponse()
+                                removeTcp(i);
+                                close(i);
+                                FD_CLR(i, &inputs);
+                            }
+                            
                         }
                     }
-                } else if (FD_ISSET(tfd, &testFds)) {
-                    cout << "Received TCP request!\n";
-                    addrlen = sizeof(tcpAddr);
-                    if ((newfd = accept(tfd, (struct sockaddr*) &tcpAddr, &addrlen)) == -1) perror("accept");
-
-                    string tcpBuffer = "";
-                    n = 1;
-                    while (n != 0) {
-                        cout << "TCP read: " << n << '\n';
-                        n = read(newfd, buffer, 128);
-                        if (n == -1) {
-                            cerr << "Erro a ler buffer TCP.\n";
-                            exit(1);
-                        }
-                        tcpBuffer += buffer;
-                    }
-
-                    cout << "2AQUI!\n";
-                    n=write(newfd,"CLS OK\n", 7);   // ROA OK
-                    if (n==-1) cout << "Problema no sendto: ROA OK\n";
-
-                    if (serverResponse(tcpBuffer, "tcp") == -1) {
-                        //cerr << "Problema ao processar request.\n";
-                        if (write(newfd, "ERR\n", 4) == -1) perror("tcp write");
-                    }
-
-                    // response is handled by specific functions: serverResponse()
-                    close(newfd);
                 }
         }
 
@@ -213,13 +226,16 @@ int serverResponse(string buffer, string protocol) {
     int n = 0;
     vector<string> input;
     string s;
-    stringstream buf;
-    buf << buffer;
+    stringstream ss;
+    ss << buffer;
     
-    while(getline(buf, s, ' ')) {
+    //cout << "Buffer:\n";
+    while(getline(ss, s, ' ')) {
         input.push_back(s);
         n++;
+        //cout << s << '\n';
     }
+    //cout << ":\n";
     input[n-1].pop_back();
 
     if (verbose) verboseOut(input, protocol);
@@ -266,7 +282,7 @@ int serverResponse(string buffer, string protocol) {
             return -1;
         }
     } else if (input[0] == "CLS") {     //TCP
-        if ((n = processListMyAuctions(input[1])) == -1) {
+        if ((n = processClose(input[1], input[3])) == -1) {
             cerr << "Problema a processar CLS.\n";
             return -1;
         }
@@ -286,7 +302,7 @@ int serverResponse(string buffer, string protocol) {
         return -1;
     }
     
-    return 1;
+    return 0;
 }
 
 // UDP functions ------------------------------------
@@ -469,7 +485,7 @@ int processListMyBids(string uid) {
 int processList() {
 
     string list = listAuctions(getAllAuctions());
-    cout << "LIST:" << list << ":\n";
+    //cout << "LIST:" << list << ":\n";
     if (list == "") {       //RLS NOK - no Auctions yet
         n=sendto(ufd,"RLS NOK\n",8,0,(struct sockaddr*) &udpAddr, addrlen);
         if (n==-1) cout << "Problema no sendto: RLS NOK\n";
@@ -482,7 +498,7 @@ int processList() {
     return 0;
 }
 
-//int show_record() {}
+// int show_record() {}
 
 // TCP functions ------------------------------------
 
@@ -527,37 +543,60 @@ int processOpen(vector<string> input) {
         return 0;
     }
 
+    string aid = addAuction(input);
     //create auction, update database
-    if (addAuction(input) == -1) {      // problema a adicionar Auction
-        cout << "1AQUI!\n";
+    if (aid == "!") {      // problema a adicionar Auction
         n=write(newfd,"ROA NOK\n", 8);   // ROA NOK
         if (n==-1) cout << "Problema no sendto: ROA NOK\n";
     } else {
-        cout << "2AQUI!\n";
-        n=write(newfd,"ROA OK\n", 7);   // ROA OK
+        string ans = "ROA OK " + aid + "\n";
+        n=write(newfd, ans.c_str(), 11);   // ROA OK
         if (n==-1) cout << "Problema no sendto: ROA OK\n";
     }
 
     return 0;
 }
 
-int processClose(string uid, string aid) {
-    (void) aid;
+int processClose(string uid, string aid) { 
     if (!checkFormat("uid", uid)) {
         cerr << "Poorly formatted request.\n";
         return -1;
     }
 
-    return 0;
     //check if uid is logged in (RCL NLG)
+    Client c = getUser(uid);
+    if (c._password == "problem") return -1;
+
+    if (c._status != "logged in") {
+        n=write(newfd,"RCL NLG\n", 8);   // RCL NLG
+        if (n==-1) cout << "Problema no sendto: RCL NLG\n";
+        return 1;
+    }
 
     //check if aid exists   (RCL EAU)
+    Auction a = getAuction(aid);
+    if (a._aid != aid) {        // nao existe auction (aid)
+        n=write(newfd,"RCL EAU\n", 8);   // RCL EAU
+        if (n==-1) cout << "Problema no sendto: RCL EAU\n";
+        return 1;
+    }
 
     //check if aid was HOSTED by uid (RCL EOW)
+    if (to_string(a._uid) != uid) {
+        n=write(newfd,"RCL EOW\n", 8);   // RCL EOW
+        if (n==-1) cout << "Problema no sendto: RCL EOW\n";
+        return 1;
+    }
 
-    //check if aid is still active (RCL END)
-
-    // RCL OK, end auction by adding END_aid.txt to AUCTIONS/aid/
+    if (!endAuction(aid)) {
+        n=write(newfd,"RCL END\n", 8);   // RCL END
+        if (n==-1) cout << "Problema no sendto: RCL END\n";
+    } else {
+        // RCL OK, end auction by adding END_aid.txt to AUCTIONS/aid/
+        n=write(newfd,"RCL OK\n", 7);   // RCL OK
+        if (n==-1) cout << "Problema no sendto: RCL OK\n";
+    }
+    return 0;
 }
 
 int processBid(string uid, string aid, string bid) {

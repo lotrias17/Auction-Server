@@ -23,6 +23,7 @@ string aidToString(int aid);
 string timeToString(tm* time);
 int checkUserRegistry(string uid);
 
+
 int addUser(string uid, string password);
 int unregisterUser(string uid);
 int loginUser(string uid, string password);
@@ -33,7 +34,9 @@ int setUser(Client c);
 vector<Auction> getUserAuctions(string uid, string dir);
 string listAuctions(vector<Auction> list);
 vector<Auction> getAllAuctions();
-int addAuction(vector<string> input);
+string addAuction(vector<string> input);
+Auction getAuction(string aid);
+int endAuction(string aid);
 //int deleteAuction();
 //int getAuction();
 
