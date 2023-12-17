@@ -39,6 +39,8 @@ bool checkPORTFormat(char* str);
 int serverResponse(string buffer, string protocol, int fd);
 bool isAlphaNumeric(string str);
 bool isNumeric(string str);
+bool isAlphabetical(string str);
+bool isLowerCase(string str);
 bool checkFormat(string format, string str);
 int countSpaces(string str);
 

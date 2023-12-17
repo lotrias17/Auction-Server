@@ -28,6 +28,26 @@ bool isAlphaNumeric(string str) {
     return true;
 }
 
+bool isAlphabetical(string str) {
+    int size = (int) str.size();    
+    for (int i = 0; i < size; i++) {
+        if (!isalpha(str[i])) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool isLowerCase(string str) { 
+    int size = (int) str.size();    
+        for (int i = 0; i < size; i++) {
+            if (!islower(str[i])) {
+                return false;
+            }
+        }
+        return true;
+}
+
 bool checkFormat(string format, string str) {
     //cout << "INPUT: " << str << ": " << str.size()  << " \n";
     if (format == "uid") return str.size() == 6 && isNumeric(str); 
@@ -35,12 +55,16 @@ bool checkFormat(string format, string str) {
     else if (format == "aid") return str.size() == 3 && isNumeric(str);
     else if (format == "bid") return str.size() <= 6 && isNumeric(str);
     else if (format == "fname") {
-        int size = (int) str.size();    
+        int size = (int) str.size();   
+        if (size > 24) return false; 
         for (int i = 0; i < size; i++) {
             if (!isalnum(str[i])) {
                 if (str[i] != '_' && str[i] != '-' && str[i] != '.') return false;
             }
         }
+        string ext = str.substr((str.find_last_of('.')+1));
+        cout << "EXT:" << ext << ":\n";
+        if (ext.size() != 3 || !isAlphabetical(ext) || !isLowerCase(ext)) return false;
         return true;
     }
     else if (format == "fsize") return str.size() < 9 && isNumeric(str) && stoi(str) < 1024*1024*10;
@@ -253,9 +277,9 @@ void receiveRequest() {
                                         buf->_buffer.erase(0, buf->_necessary.size()+1);
                                         
                                         if (buf->toCreate) {
-                                            if (serverResponse(buf->_necessary, "tcp", i) == -1) {
+                                            if (serverResponse(buf->_necessary, "tcp", buf->_fd) == -1) {
                                                 //cerr << "Problema ao processar request.\n";
-                                                if (write(i, "ERR\n", 4) == -1) perror("tcp write");
+                                                if (write(buf->_fd, "ERR\n", 4) == -1) perror("tcp write");
                                             }
 
                                             fout.open(buf->_path, ios::binary);
