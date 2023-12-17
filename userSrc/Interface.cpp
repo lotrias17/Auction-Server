@@ -119,6 +119,67 @@ bool Interface::checkUIDFormat(string str) {
     return str.size() == 6 && isNumeric(str);
 }
 
+bool checkDateFormat(char* date) {
+    if (!isdigit(date[0])) {
+        return false;
+    }
+    if (!isdigit(date[1])) {
+        return false;
+    }
+    if (!isdigit(date[2])) {
+        return false;
+    }
+    if (!isdigit(date[3])) {
+        return false;
+    }
+    if (date[4] != '-') {
+        return false;
+    }
+    if (!isdigit(date[5])) {
+        return false;
+    }
+    if (!isdigit(date[6])) {
+        return false;
+    }
+    if (date[7] != '-') {
+        return false;
+    }
+    if (!isdigit(date[8])) {
+        return false;
+    }
+    if (!isdigit(date[9])) {
+        return false;
+    }
+    if (date[10] != ' ') {
+        return false;
+    }
+    if (!isdigit(date[11])) {
+        return false;
+    }
+    if (!isdigit(date[12])) {
+        return false;
+    }
+    if (date[13] != ':') {
+        return false;
+    }
+    if (!isdigit(date[14])) {
+        return false;
+    }
+    if (!isdigit(date[15])) {
+        return false;
+    }
+    if (date[16] != ':') {
+        return false;
+    }
+    if (!isdigit(date[17])) {
+        return false;
+    }
+    if (!isdigit(date[18])) {
+        return false;
+    }
+    return true;
+}
+
 bool Interface::checkpasswordFormat(string str) {
     return str.size() == 8 && isAlphaNumeric(str);
 }
@@ -178,7 +239,7 @@ int Interface::udpBufferProtocol(int sendSize, int rcvSize) {
     struct timeval tv;
     FD_ZERO(&readfd);
     FD_SET(_udpfd, &readfd);
-    tv.tv_sec = 3;
+    tv.tv_sec = TIMEOUT;
     tv.tv_usec = 0;
 
     // cout << "fiz o select!\n";
@@ -239,6 +300,24 @@ int Interface::tcpBufferProtocol(int sendSize, int rcvSize) {
         exit(1);
     }
 
+    fd_set writefd;
+    struct timeval tv;
+    FD_ZERO(&writefd);
+    FD_SET(_tcpfd, &writefd);
+    tv.tv_sec = TIMEOUT;
+    tv.tv_usec = 0;
+
+    // cout << "fiz o select!\n";
+    int l = select(_tcpfd + 1, NULL, &writefd, NULL, &tv);
+    // cout << "j: " << j << "\n";
+    if (l == -1) {
+        cout << "Erro no select()\n";
+        exit(1);
+    } else if (l == 0) {
+        cout << "Servidor demorou a responder!\n";
+        return -1;
+    }
+
     n = write(_tcpfd, _buffer, sendSize);
     if(n==-1) {
         close(_tcpfd);
@@ -247,11 +326,8 @@ int Interface::tcpBufferProtocol(int sendSize, int rcvSize) {
     }
 
     fd_set readfd;
-    struct timeval tv;
     FD_ZERO(&readfd);
     FD_SET(_tcpfd, &readfd);
-    tv.tv_sec = 3;
-    tv.tv_usec = 0;
 
     // cout << "fiz o select!\n";
     int j = select(_tcpfd + 1, &readfd, NULL, NULL, &tv);
@@ -700,20 +776,25 @@ int Interface::printBid(int n, int i) {
     int l = i;
     i += 2;
     if (i > n) {
-        cout << "AResposta do servidor mal formatada!\n";
+        cout << "Resposta do servidor mal formatada!\n";
         return 0;
     }
     if (i + 7 > n) {
-        cout << "BResposta do servidor mal formatada!\n";
+        cout << "Resposta do servidor mal formatada!\n";
         return 0;
     }
     char uid[7];
     for (int k = 0; k < 6; k++) {
         uid[k] = _buffer[i + k];
     }
+    string hihi = uid;
+    if (!isNumeric(hihi)) {
+        cout << "UID mal enviado pelo servidor!\n";
+        return 0;
+    }
     uid[6] = '\0';
     if (_buffer[i + 6] != ' ') {
-        cout << "CResposta do servidor mal formatada!\n";
+        cout << "Resposta do servidor mal formatada!\n";
         return 0;
     }
     i += 7;
@@ -723,7 +804,7 @@ int Interface::printBid(int n, int i) {
     char bidvalue[128];
     for (int k = 0; k < 8 * 1024; k++) {
         if (n < i + k + 1) {
-            cout << "DResposta do servidor mal formatada!\n";
+            cout << "Resposta do servidor mal formatada!\n";
             return 0;
         }
         if (_buffer[i + k] == ' ') {
@@ -735,22 +816,31 @@ int Interface::printBid(int n, int i) {
         bidvalue[k] = _buffer[i + k];
     }
     if (!left) {
-        cout << "EResposta do servidor mal formatada!\n";
+        cout << "Resposta do servidor mal formatada!\n";
+        return 0;
+    }
+    hihi = bidvalue;
+    if (!isNumeric(hihi)) {
+        cout << "valor inicial mal enviado!\n";
         return 0;
     }
     cout << " deu bid com o valor " << bidvalue;
 
     if (i + 20 > n) {
-        cout << "FResposta do servidor mal formatada!\n";
+        cout << "Resposta do servidor mal formatada!\n";
         return 0;
     }
     char bDate[20];
     for (int k = 0; k < 19; k++) {
         bDate[k] = _buffer[i + k];
     }
+    if (!checkDateFormat(bDate)) {
+        cout << "Resposta do servidor mal formatada!\n";
+        return 0;
+    }
     bDate[19] = '\0';
     if (_buffer[i + 19] != ' ') {
-        cout << "GResposta do servidor mal formatada!\n";
+        cout << "Resposta do servidor mal formatada!\n";
         return 0;
     }
     i += 20;
@@ -760,11 +850,11 @@ int Interface::printBid(int n, int i) {
     left = false;
     char endtimeactive[128];
     for (int k = 0; k < 8 * 1024; k++) {
-        if (n < i + k + 1) {
-            cout << "HResposta do servidor mal formatada!\n";
+        if (n < i + k) {
+            cout << "Resposta do servidor mal formatada!\n";
             return 0;
         }
-        if (_buffer[i + k] == ' ') {
+        if (_buffer[i + k] == ' ' || _buffer[i + k] == '\n') {
             endtimeactive[k] = '\0';
             left = true;
             i += k + 1;
@@ -773,12 +863,16 @@ int Interface::printBid(int n, int i) {
         endtimeactive[k] = _buffer[i + k];
     }
     if (!left) {
-        cout << "IResposta do servidor mal formatada!\n";
+        cout << "Resposta do servidor mal formatada!\n";
+        return 0;
+    }
+    hihi = endtimeactive;
+    if (!isNumeric(hihi)) {
+        cout << "valor inicial mal enviado!\n";
         return 0;
     }
     cout << ", " << atoi(endtimeactive) << " segundos apos o inicio da auction!\n";
     return (i - l - 1);
-
 }
 
 int Interface::showRecord() {
@@ -816,7 +910,7 @@ int Interface::showRecord() {
             }
             uid[6] = '\0';
         } else {
-            cout << "A.Resposta do servidor mal formatada!\n";
+            cout << "Resposta do servidor mal formatada!\n";
             return 0;
         }
         string hihi = uid;
@@ -830,7 +924,7 @@ int Interface::showRecord() {
         char name[128];
         for (int i = 0; i < 8 * 1024; i++) {
             if (n < pos + i + 1) {
-                cout << "B.Resposta do servidor mal formatada!\n";
+                cout << "Resposta do servidor mal formatada!\n";
                 return 0;
             }
             if (_buffer[pos + i] == ' ') {
@@ -845,7 +939,7 @@ int Interface::showRecord() {
         char fname[128];
         for (int i = 0; i < 8 * 1024; i++) {
             if (n < pos + i + 1) {
-                cout << "1Resposta do servidor mal formatada!\n";
+                cout << "Resposta do servidor mal formatada!\n";
                 return 0;
             }
             if (_buffer[pos + i] == ' ') {
@@ -860,7 +954,7 @@ int Interface::showRecord() {
         char startvalue[128];
         for (int i = 0; i < 8 * 1024; i++) {
             if (n < pos + i + 1) {
-                cout << "2Resposta do servidor mal formatada!\n";
+                cout << "Resposta do servidor mal formatada!\n";
                 return 0;
             }
             if (_buffer[pos + i] == ' ') {
@@ -870,24 +964,33 @@ int Interface::showRecord() {
             }
             startvalue[i] = _buffer[pos + i];
         }
+        hihi = startvalue;
+        if (!isNumeric(hihi)) {
+            cout << "valor inicial mal enviado!\n";
+            return 0;
+        }
         cout << " com um valor inicial de " << startvalue;
 
         char startDate[128];
         if (pos + 20 > n) {
-            cout << "3Resposta do servidor mal formatada!\n";
+            cout << "Resposta do servidor mal formatada!\n";
             return 0;
         }
         for (int i = 0; i < 19; i++) {
             startDate[i] = _buffer[pos + i];
         }
         startDate[19] = '\0';
+        if (!checkDateFormat(startDate)) {
+            cout << "Resposta do servidor mal formatada!\n";
+            return 0;
+        }
         pos += 20;
         cout << " e criado as " << startDate;
 
         char timeactive[128];
         for (int i = 0; i < 8 * 1024; i++) {
             if (n < pos + i + 1) {
-                cout << "4Resposta do servidor mal formatada!\n";
+                cout << "Resposta do servidor mal formatada!\n";
                 return 0;
             }
             if (_buffer[pos + i] == ' ') {
@@ -897,18 +1000,22 @@ int Interface::showRecord() {
             }
             timeactive[i] = _buffer[pos + i];
         }
-        cout << " e esta/esteve ativa durante " << atoi(timeactive) << " segundos \n";
+        hihi = timeactive;
+        if (!isNumeric(hihi)) {
+            cout << "tempo ativo mal enviado!\n";
+            return 0;
+        }
+        cout << " e foi inicializada com " << atoi(timeactive) << " segundos de bid time\n";
 
         // biding part!!!!
-        //cout << "O resto do buffer: " << (_buffer + pos) << ":\n";
+        // cout << "O resto do buffer: " << (_buffer + pos) << "\n";
 
         for (int i = pos; i < 8 *1024; i++) {
             if (n < i) {
-                cout << "\n5Resposta do servidor mal formatada!\n";
-                return 0;
+                break;
             }
 
-            if (_buffer[i] == '\0') break;    // end case
+            // if (_buffer[i] == '\0') break;    // end case
             if (_buffer[i] == 'B') {
                 int j = printBid(n, i);
                 if (j == -1) {
@@ -928,6 +1035,10 @@ int Interface::showRecord() {
                 }
                 for (int j = 0; j < 19; j++) {
                     endDate[j] = _buffer[i + j];
+                }
+                if (!checkDateFormat(endDate)) {
+                    cout << "Resposta do servidor mal formatada!\n";
+                    return 0;
                 }
                 endDate[19] = '\0';
                 if (_buffer[i + 19] != ' ') {
@@ -950,14 +1061,21 @@ int Interface::showRecord() {
                         break;
                     }
                     endtimeactive[k] = _buffer[i + k];
-                } 
+                }
+                hihi = endtimeactive;
+                if (!isNumeric(hihi)) {
+                    cout << "tempo apos que acabou mal enviado!\n";
+                    return 0;
+                }
                 if (n != i) {
-                    cout << "9Resposta do servidor mal formatada!\n";
+                    cout << "Resposta do servidor mal formatada!\n";
                     return 0;
                 }
                 cout << " e acabou apos " << endtimeactive << " segundos \n";
                 return 0;
             }
+            cout << "\nResposta do servidor mal formatada!\n";
+            return 0;
         }
 
         return 0;
@@ -1058,6 +1176,24 @@ int Interface::open() {
         exit(1);
     }
 
+    fd_set writefd;
+    struct timeval tv;
+    FD_ZERO(&writefd);
+    FD_SET(_tcpfd, &writefd);
+    tv.tv_sec = TIMEOUT;
+    tv.tv_usec = 0;
+
+    // cout << "fiz o select!\n";
+    int l = select(_tcpfd + 1, NULL, &writefd, NULL, &tv);
+    // cout << "j: " << j << "\n";
+    if (l == -1) {
+        cout << "Erro no select()\n";
+        exit(1);
+    } else if (l == 0) {
+        cout << "Servidor demorou a responder!\n";
+        return -1;
+    }
+
     n = write(_tcpfd, _buffer, j);
     if(n==-1) {
         close(_tcpfd);
@@ -1092,6 +1228,19 @@ int Interface::open() {
         // cout << "Enviando " << read1 << " bytes: " << _buffer;
         write1 = 0;
         while (read1 > 0) {
+            FD_ZERO(&writefd);
+            FD_SET(_tcpfd, &writefd);
+
+            // cout << "fiz o select!\n";
+            j = select(_tcpfd + 1, NULL, &writefd, NULL, &tv);
+            // cout << "j: " << j << "\n";
+            if (j == -1) {
+                cout << "Erro no select()\n";
+                exit(1);
+            } else if (j == 0) {
+                cout << "Servidor demorou a responder!\n";
+                return -1;
+            }
             write1 = write(_tcpfd, _buffer, read1);
             // cout << "Escrevi: " << write1 << " bytes dos " << read1 << "\n";
             sent += write1;
@@ -1112,11 +1261,8 @@ int Interface::open() {
     // receber merdas
 
     fd_set readfd;
-    struct timeval tv;
     FD_ZERO(&readfd);
     FD_SET(_tcpfd, &readfd);
-    tv.tv_sec = 5;
-    tv.tv_usec = 0;
 
     // cout << "fiz o select!\n";
     int u = select(_tcpfd + 1, &readfd, NULL, NULL, &tv);
@@ -1315,6 +1461,24 @@ int Interface::showAsset() {
         exit(1);
     }
 
+    fd_set writefd;
+    struct timeval tv;
+    FD_ZERO(&writefd);
+    FD_SET(_tcpfd, &writefd);
+    tv.tv_sec = TIMEOUT;
+    tv.tv_usec = 0;
+
+    // cout << "fiz o select!\n";
+    int l = select(_tcpfd + 1, NULL, &writefd, NULL, &tv);
+    // cout << "j: " << j << "\n";
+    if (l == -1) {
+        cout << "Erro no select()\n";
+        exit(1);
+    } else if (l == 0) {
+        cout << "Servidor demorou a responder!\n";
+        return -1;
+    }
+
     n = write(_tcpfd, _buffer, 8);
     if(n==-1) {
         close(_tcpfd);
@@ -1325,11 +1489,8 @@ int Interface::showAsset() {
     // receber merdas
 
     fd_set readfd;
-    struct timeval tv;
     FD_ZERO(&readfd);
     FD_SET(_tcpfd, &readfd);
-    tv.tv_sec = 10;
-    tv.tv_usec = 0;
 
     // cout << "fiz o select!\n";
     int j = select(_tcpfd + 1, &readfd, NULL, NULL, &tv);
@@ -1369,7 +1530,7 @@ int Interface::showAsset() {
             struct timeval tv;
             FD_ZERO(&readfd);
             FD_SET(_tcpfd, &readfd);
-            tv.tv_sec = 10;
+            tv.tv_sec = TIMEOUT;
             tv.tv_usec = 0;
 
             // cout << "fiz o select!\n";
@@ -1450,7 +1611,7 @@ int Interface::showAsset() {
         struct timeval tv;
         FD_ZERO(&readfd);
         FD_SET(_tcpfd, &readfd);
-        tv.tv_sec = 10;
+        tv.tv_sec = TIMEOUT;
         tv.tv_usec = 0;
         while (size > 0) {
             // cout << "fiz o select!\n";

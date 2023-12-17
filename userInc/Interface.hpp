@@ -12,6 +12,8 @@
 
 #include "Client.hpp"
 
+#define TIMEOUT 5
+
 using namespace std;
 
 class Interface {
