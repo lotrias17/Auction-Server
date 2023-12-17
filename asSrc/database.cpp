@@ -247,7 +247,7 @@ string addAuction(vector<string> input) {
     string timeActive = input[5];
     string Fname = input[6];
     string Fsize = input[7];
-    string Fdata = input[8];
+    
     time_t fullTime;
     struct tm* date;
     int numEntries;
@@ -285,14 +285,7 @@ string addAuction(vector<string> input) {
 
     path = aucDir + "ASSET/";
     if ((mkdir(path.c_str(), 0700)) == -1) return aidToString(-1);    //problem making userDir
-
-    path += Fname;
     
-    // adicionar asset com Fname, Fsize e Fdata à diretoria ASSET/
-    file.open(path.c_str(), ios::binary);
-    file << Fdata;
-    file.close();
-
     // adicionar (aid).txt na diretoria USERS/(uid)/HOSTED/
     path = "USERS/" + uid + "/HOSTED/" + aidToString(currAid) + ".txt";
 
@@ -397,11 +390,11 @@ string showAuctionRecord(string aid) {
         name = filelist[numEntries]->d_name;
         if (name.length() > 4) {
             path = bidDir + name;
-            res += "\n B ";
+            res += " B ";
             fin.open(path, ios_base::app);
             fin >> uid >> value >> date >> time >> duration;
             fin.close();
-            res += uid+" "+value+" "+date+" "+time+" "+duration+" ";
+            res += uid+" "+value+" "+date+" "+time+" "+duration;
         }
         free(filelist[numEntries]);
     }
@@ -409,13 +402,13 @@ string showAuctionRecord(string aid) {
 
     if (a._state == 0) {
         path = "AUCTIONS/"+aid+"/END_"+aid+".txt";
-        res += "\n E ";
+        res += " E ";
 
         fin.open(path);
         fin >> date >> time >> duration;
         fin.close();
 
-        res += date+" "+time+" "+duration+" ";
+        res += date+" "+time+" "+duration;
     }
 
     return res;

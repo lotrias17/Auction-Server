@@ -4,17 +4,16 @@ vector<tcpBuffer> tcpList;
 
 tcpBuffer::tcpBuffer() {
     _fd = -1;
-    _bufPos = 0;
 }
 
-tcpBuffer::tcpBuffer(int fd, int bufPos) {
+tcpBuffer::tcpBuffer(int fd) {
     _fd = fd;
-    _bufPos = bufPos;
+    canWrite = false;
+    toCreate = true;
 }
 
 void tcpBuffer::update(char* buf) {
     _buffer += buf;
-    _bufPos += 3;
 }
 
 void removeTcp(int fd) {
@@ -28,7 +27,7 @@ tcpBuffer *getTcpBuffer(int fd) {
     for (int i = 0; i < (int) tcpList.size(); i++) {
         if (tcpList[i]._fd == fd) return &tcpList[i];
     }
-    tcpBuffer t = tcpBuffer(fd, 0);
+    tcpBuffer t = tcpBuffer(fd);
     tcpList.push_back(t);
     return &tcpList[tcpList.size()-1];
 }

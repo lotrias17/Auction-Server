@@ -776,11 +776,11 @@ int Interface::printBid(int n, int i) {
     int l = i;
     i += 2;
     if (i > n) {
-        cout << "Resposta do servidor mal formatada!\n";
+        cout << "1Resposta do servidor mal formatada!\n";
         return 0;
     }
     if (i + 7 > n) {
-        cout << "Resposta do servidor mal formatada!\n";
+        cout << "2Resposta do servidor mal formatada!\n";
         return 0;
     }
     char uid[7];
@@ -794,7 +794,7 @@ int Interface::printBid(int n, int i) {
     }
     uid[6] = '\0';
     if (_buffer[i + 6] != ' ') {
-        cout << "Resposta do servidor mal formatada!\n";
+        cout << "3Resposta do servidor mal formatada!\n";
         return 0;
     }
     i += 7;
@@ -804,7 +804,7 @@ int Interface::printBid(int n, int i) {
     char bidvalue[128];
     for (int k = 0; k < 8 * 1024; k++) {
         if (n < i + k + 1) {
-            cout << "Resposta do servidor mal formatada!\n";
+            cout << "4Resposta do servidor mal formatada!\n";
             return 0;
         }
         if (_buffer[i + k] == ' ') {
@@ -816,7 +816,7 @@ int Interface::printBid(int n, int i) {
         bidvalue[k] = _buffer[i + k];
     }
     if (!left) {
-        cout << "Resposta do servidor mal formatada!\n";
+        cout << "5Resposta do servidor mal formatada!\n";
         return 0;
     }
     hihi = bidvalue;
@@ -827,7 +827,7 @@ int Interface::printBid(int n, int i) {
     cout << " deu bid com o valor " << bidvalue;
 
     if (i + 20 > n) {
-        cout << "Resposta do servidor mal formatada!\n";
+        cout << "6Resposta do servidor mal formatada!\n";
         return 0;
     }
     char bDate[20];
@@ -835,12 +835,12 @@ int Interface::printBid(int n, int i) {
         bDate[k] = _buffer[i + k];
     }
     if (!checkDateFormat(bDate)) {
-        cout << "Resposta do servidor mal formatada!\n";
+        cout << "7Resposta do servidor mal formatada!\n";
         return 0;
     }
     bDate[19] = '\0';
     if (_buffer[i + 19] != ' ') {
-        cout << "Resposta do servidor mal formatada!\n";
+        cout << "8Resposta do servidor mal formatada!\n";
         return 0;
     }
     i += 20;
@@ -851,7 +851,7 @@ int Interface::printBid(int n, int i) {
     char endtimeactive[128];
     for (int k = 0; k < 8 * 1024; k++) {
         if (n < i + k) {
-            cout << "Resposta do servidor mal formatada!\n";
+            cout << "9Resposta do servidor mal formatada!\n";
             return 0;
         }
         if (_buffer[i + k] == ' ' || _buffer[i + k] == '\n') {
@@ -863,7 +863,7 @@ int Interface::printBid(int n, int i) {
         endtimeactive[k] = _buffer[i + k];
     }
     if (!left) {
-        cout << "Resposta do servidor mal formatada!\n";
+        cout << "10Resposta do servidor mal formatada!\n";
         return 0;
     }
     hihi = endtimeactive;
@@ -910,7 +910,7 @@ int Interface::showRecord() {
             }
             uid[6] = '\0';
         } else {
-            cout << "Resposta do servidor mal formatada!\n";
+            cout << "11Resposta do servidor mal formatada!\n";
             return 0;
         }
         string hihi = uid;
@@ -924,7 +924,7 @@ int Interface::showRecord() {
         char name[128];
         for (int i = 0; i < 8 * 1024; i++) {
             if (n < pos + i + 1) {
-                cout << "Resposta do servidor mal formatada!\n";
+                cout << "12Resposta do servidor mal formatada!\n";
                 return 0;
             }
             if (_buffer[pos + i] == ' ') {
@@ -939,7 +939,7 @@ int Interface::showRecord() {
         char fname[128];
         for (int i = 0; i < 8 * 1024; i++) {
             if (n < pos + i + 1) {
-                cout << "Resposta do servidor mal formatada!\n";
+                cout << "13Resposta do servidor mal formatada!\n";
                 return 0;
             }
             if (_buffer[pos + i] == ' ') {
@@ -954,7 +954,7 @@ int Interface::showRecord() {
         char startvalue[128];
         for (int i = 0; i < 8 * 1024; i++) {
             if (n < pos + i + 1) {
-                cout << "Resposta do servidor mal formatada!\n";
+                cout << "14Resposta do servidor mal formatada!\n";
                 return 0;
             }
             if (_buffer[pos + i] == ' ') {
@@ -973,7 +973,7 @@ int Interface::showRecord() {
 
         char startDate[128];
         if (pos + 20 > n) {
-            cout << "Resposta do servidor mal formatada!\n";
+            cout << "15Resposta do servidor mal formatada!\n";
             return 0;
         }
         for (int i = 0; i < 19; i++) {
@@ -981,7 +981,7 @@ int Interface::showRecord() {
         }
         startDate[19] = '\0';
         if (!checkDateFormat(startDate)) {
-            cout << "Resposta do servidor mal formatada!\n";
+            cout << "16Resposta do servidor mal formatada!\n";
             return 0;
         }
         pos += 20;
@@ -990,7 +990,7 @@ int Interface::showRecord() {
         char timeactive[128];
         for (int i = 0; i < 8 * 1024; i++) {
             if (n < pos + i + 1) {
-                cout << "Resposta do servidor mal formatada!\n";
+                cout << "17Resposta do servidor mal formatada!\n";
                 return 0;
             }
             if (_buffer[pos + i] == ' ') {
@@ -1027,22 +1027,22 @@ int Interface::showRecord() {
             }
             if (_buffer[i] == 'E') {
                 char endDate[128];
-                (void) endDate;
+                //(void) endDate;
                 i += 2;
                 if (i + 20 > n) {
-                    cout << "\n6Resposta do servidor mal formatada!\n";
+                    cout << "\n18Resposta do servidor mal formatada!\n";
                     return 0;
                 }
                 for (int j = 0; j < 19; j++) {
                     endDate[j] = _buffer[i + j];
                 }
                 if (!checkDateFormat(endDate)) {
-                    cout << "Resposta do servidor mal formatada!\n";
+                    cout << "19Resposta do servidor mal formatada!\n";
                     return 0;
                 }
                 endDate[19] = '\0';
                 if (_buffer[i + 19] != ' ') {
-                    cout << "7Resposta do servidor mal formatada!\n";
+                    cout << "20Resposta do servidor mal formatada!\n";
                     return 0;
                 }
                 i += 20;
@@ -1051,7 +1051,7 @@ int Interface::showRecord() {
                 char endtimeactive[128];
                 for (int k = 0; k < 8 * 1024; k++) {
                     if (n < i + k) {
-                        cout << "8Resposta do servidor mal formatada!\n";
+                        cout << "21Resposta do servidor mal formatada!\n";
                         return 0;
                     }
                     //cout << "BUF:" << _buffer[i+k] << ":\n";
@@ -1068,13 +1068,13 @@ int Interface::showRecord() {
                     return 0;
                 }
                 if (n != i) {
-                    cout << "Resposta do servidor mal formatada!\n";
+                    cout << "22Resposta do servidor mal formatada!\n";
                     return 0;
                 }
                 cout << " e acabou apos " << endtimeactive << " segundos \n";
                 return 0;
             }
-            cout << "\nResposta do servidor mal formatada!\n";
+            cout << "\n23Resposta do servidor mal formatada!\n";
             return 0;
         }
 
@@ -1492,9 +1492,9 @@ int Interface::showAsset() {
     FD_ZERO(&readfd);
     FD_SET(_tcpfd, &readfd);
 
-    // cout << "fiz o select!\n";
+    //cout << "fiz o select!\n";
     int j = select(_tcpfd + 1, &readfd, NULL, NULL, &tv);
-    // cout << "j: " << j << "\n";
+    //cout << "j: " << j << "\n";
     if (j == -1) {
         cout << "Erro no select()\n";
         exit(1);
@@ -1509,8 +1509,8 @@ int Interface::showAsset() {
         cerr << "Erro no read(), showAsset()\n";
         exit(1);
     }
-    // cout << "Lemos " << n << " caracteres!\n";
-    // cout << _buffer;
+    //cout << "Lemos " << n << " caracteres!\n";
+    //cout << _buffer << endl;
     if (!checkServerAnswer(n, _buffer, "RSA ")) {
         if (checkServerAnswer(n, _buffer, "ERR\n")) {
             cout << "Erro interno ao formar a mensagem a enviar ao servidor!\n";

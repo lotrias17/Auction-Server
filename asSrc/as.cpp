@@ -34,7 +34,25 @@ bool checkFormat(string format, string str) {
     else if (format == "password") return str.size() == 8 && isAlphaNumeric(str);
     else if (format == "aid") return str.size() == 3 && isNumeric(str);
     else if (format == "bid") return str.size() <= 6 && isNumeric(str);
+    else if (format == "fname") {
+        int size = (int) str.size();    
+        for (int i = 0; i < size; i++) {
+            if (!isalnum(str[i])) {
+                if (str[i] != '_' && str[i] != '-' && str[i] != '.') return false;
+            }
+        }
+        return true;
+    }
+    else if (format == "fsize") return str.size() < 9 && isNumeric(str) && stoi(str) < 1024*1024*10;
     else return false;
+}
+
+int countSpaces(string str) {
+    int numSpaces = 0;
+    for (auto& iter : str) {
+        if (iter == ' ') numSpaces++;
+    }
+    return numSpaces;
 }
 
 //UID, type of request, IP, Port
@@ -122,6 +140,14 @@ void setTcpSocket(char* p) {
 void receiveRequest() {
     char buffer[128];
     struct timeval timeout;
+    char tmp[4];
+    char tmp2[8 * 1025];
+    FILE* fp;
+    ofstream fout;
+    ifstream fin;
+    
+    ssize_t bytes;
+    string ans;
 
     char p[8];
     strcpy(p, to_string(port).c_str());
@@ -159,7 +185,7 @@ void receiveRequest() {
                             n=recvfrom(ufd,buffer,128,0,(struct sockaddr*) &udpAddr, &addrlen);
                             if (n==-1) cout << "Problema no recvfrom.\n";
                             else {
-                                int m = serverResponse(buffer, "udp");
+                                int m = serverResponse(buffer, "udp", i);
                                 if (m == -1) {
                                     //cerr << "Problema ao processar request.\n";
                                     n=sendto(ufd,"ERR\n",4,0,(struct sockaddr*) &udpAddr, addrlen);
@@ -174,41 +200,94 @@ void receiveRequest() {
 
                             FD_SET(newfd, &inputs);   
                         } else {
-                            char tmp[4];
-                            // tcp_info (fd, buffer, bufPos)
                             tcpBuffer *buf = getTcpBuffer(i);
+                            if (buf->isOpa) {   // deal with open request
+                                if (buf->canWrite) {
+                                    memset(tmp2, 0, 8 * 1025);
+                                    if ((bytes=read(buf->_fd, tmp2, 8 * 1024)) == -1) {     //read everything but Fdata
+                                        cerr << "Erro a ler buffer TCP.\n";
+                                        exit(1);
+                                    }
+                                    //cout << "FSIZE: " << buf->_fsize << ":\n";
+                                    if (buf->_fsize > 0) {
+                                        fout.open(buf->_path, ios_base::app | ios::binary);
+                                        fout.write(tmp2, bytes);
+                                        fout.close();
+                                    }
+                                    buf->_fsize -= bytes; 
+                                    if (buf->_fsize < 1) {
+                                        fp = fopen(buf->_path.c_str(), "rb+");
+                                        fseek(fp, 0, SEEK_END);
+                                        size_t pos = ftell(fp)-1;
+                                        fseek(fp, pos, SEEK_SET);
+                                        ftruncate(fileno(fp), pos);     //finish receiving file
+                                        fclose(fp);
 
-                            /* if (toWrite) {
-                                write(buf->_fd, path, fsize)
-                            }
-                            */
+                                        buf->canWrite = false;
+                                        
+                                        ans = "ROA OK "+buf->_aid+"\n";
+                                        
+                                        n=write(buf->_fd, ans.c_str(), ans.size());   // ROA OK
+                                        if (n==-1) cout << "Problema no sendto: ROA OK\n";
 
-                            // 1 read em vez do while 
-                            if (read(buf->_fd, tmp, 3) == -1) {
-                                cerr << "Erro a ler buffer TCP.\n";
-                                exit(1);
-                            }
-                            buf->update(tmp);
-                            
-                            // exceção de OPA
-                            if (buf->_buffer == "OPA") {
-                                // check for 7(?) spaces -> addAuction
-                                // start writing to file, from read (bool toWrite)
-                                // write(buf->_fd,)
-                            }
+                                        removeTcp(buf->_fd);
+                                        close(buf->_fd);
+                                        FD_CLR(buf->_fd, &inputs);
+                                    }
+                                } else {
+                                    memset(tmp, 0, 4);
+                                    if ((bytes=read(buf->_fd, tmp, 3)) == -1) {     //read everything but Fdata
+                                        cerr << "Erro a ler buffer TCP.\n";
+                                        exit(1);
+                                    }
+                                    buf->update(tmp);
+                                    // check for 8 spaces and then addAuction
+                                    if (countSpaces(buf->_buffer) == 8) {
+                                        
+                                        int found = buf->_buffer.find_last_of(' ');
 
-                            // só vai para serverResponse se apanhar \n   
-                            if (buf->_buffer.find('\n') != string::npos) {
-                                if (serverResponse(buf->_buffer, "tcp") == -1) {
-                                    //cerr << "Problema ao processar request.\n";
-                                    if (write(i, "ERR\n", 4) == -1) perror("tcp write");
+                                        // necessary to make auction files
+                                        buf->_necessary = buf->_buffer.substr(0,found);
+
+                                        // buffer has Fdata
+                                        buf->_buffer.erase(0, buf->_necessary.size()+1);
+                                        
+                                        if (buf->toCreate) {
+                                            if (serverResponse(buf->_necessary, "tcp", i) == -1) {
+                                                //cerr << "Problema ao processar request.\n";
+                                                if (write(i, "ERR\n", 4) == -1) perror("tcp write");
+                                            }
+
+                                            fout.open(buf->_path, ios::binary);
+                                            fout << buf->_buffer;
+                                            fout.close();
+                                            buf->_fsize -= buf->_buffer.size();
+                                        } 
+                                    }
                                 }
-                                // response is handled by specific functions: serverResponse()
-                                removeTcp(i);
-                                close(i);
-                                FD_CLR(i, &inputs);
+                            } else {
+                                // 1 read em vez do while 
+                                if (read(buf->_fd, tmp, 3) == -1) {
+                                    cerr << "Erro a ler buffer TCP.\n";
+                                    exit(1);
+                                }
+                                buf->update(tmp);
+                                //cout << "BUF:" << buf->_buffer << ":\n";
+                                // exceção de OPA
+                                if (buf->_buffer == "OPA") buf->isOpa = true;
+
+                                // só vai para serverResponse se apanhar \n   
+                                if (buf->_buffer.find('\n') != string::npos) {
+                                    if (serverResponse(buf->_buffer, "tcp", buf->_fd) == -1) {
+                                        //cerr << "Problema ao processar request.\n";
+                                        if (write(buf->_fd, "ERR\n", 4) == -1) perror("tcp write");
+                                    }
+                                    // response is handled by specific functions: serverResponse()
+                                    removeTcp(buf->_fd);
+                                    close(buf->_fd);
+                                    FD_CLR(buf->_fd, &inputs);
+                                }
                             }
-                            
                         }
                     }
                 }
@@ -223,21 +302,21 @@ void receiveRequest() {
     return;
 }
 
-int serverResponse(string buffer, string protocol) {
+int serverResponse(string buffer, string protocol, int fd) {
     int n = 0;
     vector<string> input;
     string s;
     stringstream ss;
     ss << buffer;
     
-    cout << "Buffer:\n";
+    //cout << "Buffer:\n";
     while(getline(ss, s, ' ')) {
         s = s.substr(0, s.find('\n'));
         input.push_back(s);
         n++;
-        cout << s << "!\n";
+        //cout << s << "!\n";
     }
-    cout << ":\n";
+    //cout << ":\n";
 
     if (verbose) verboseOut(input, protocol);
 
@@ -278,30 +357,27 @@ int serverResponse(string buffer, string protocol) {
             return -1;
         }
     } else if (input[0] == "OPA") {     //TCP
-        if ((processOpen(input)) == -1) {
+        if ((processOpen(input, fd)) == -1) {
             cerr << "Problema a processar OPA.\n";
             return -1;
         }
     } else if (input[0] == "CLS") {     //TCP
-        if ((processClose(input[1], input[2], input[3])) == -1) {
+        if ((processClose(input[1], input[2], input[3], fd)) == -1) {
             cerr << "Problema a processar CLS.\n";
             return -1;
         }
     } else if (input[0] == "SAS") {     //TCP
-        if ((processList()) == -1) {
+        if (processShowAsset(input[1], fd) == -1) {
             cerr << "Problema a processar SAS.\n";
             return -1;
         }
     } else if (input[0] == "BID") {     //TCP
-        if ((processBid(input[1], input[2], input[3], input[4])) == -1) {
+        if ((processBid(input[1], input[2], input[3], input[4], fd)) == -1) {
             cerr << "Problema a processar BID.\n";
             return -1;
         }
     }
-    else {
-        //cerr << "Unknown Command.\n";
-        return -1;
-    }
+    else return -1;
     
     return 0;
 }
@@ -539,7 +615,7 @@ int processShowRecord(string aid) {
 
 // TCP functions ------------------------------------
 
-int processOpen(vector<string> input) {         // CHECK FNAME AND FSIZE!!!!!!!!!!!!!!!!!!!
+int processOpen(vector<string> input, int fd) {
     string uid = input[1];
     string password = input[2];
     string name = input[3];
@@ -547,7 +623,6 @@ int processOpen(vector<string> input) {         // CHECK FNAME AND FSIZE!!!!!!!!
     string timeActive = input[5];
     string Fname = input[6];
     string Fsize = input[7];
-    string Fdata = input[8];
 
     //check uid, password
     if (!checkFormat("uid", uid) || !checkFormat("password", password)) {
@@ -559,12 +634,18 @@ int processOpen(vector<string> input) {         // CHECK FNAME AND FSIZE!!!!!!!!
         //cout << "O nome do produto tem de ser menor que 10 characteres!\n";
         cerr << "Poorly formatted request.\n";
         return -1;
-    } else if (!isNumeric(startValue) || startValue.length() > 6) {
+    }
+    if (!isNumeric(startValue) || startValue.length() > 6) {
         //cout << "O start value tem que ser um numero inferior a 10^7!\n";
         cerr << "Poorly formatted request.\n";
         return -1;
-    } else if (!isNumeric(timeActive) || timeActive.length() > 5) {
+    }
+    if (!isNumeric(timeActive) || timeActive.length() > 5) {
         //cout << "O time dever ser um numero inferor a 10^6!\n";
+        cerr << "Poorly formatted request.\n";
+        return -1;
+    }
+    if (!checkFormat("fname", Fname) || !checkFormat("fsize", Fsize)) {
         cerr << "Poorly formatted request.\n";
         return -1;
     }
@@ -573,14 +654,14 @@ int processOpen(vector<string> input) {         // CHECK FNAME AND FSIZE!!!!!!!!
     Client c = getUser(uid);
     if (c._password == "problem") return -1;
     if (c._password != password) {
-        n=sendto(ufd,"ROA NOK\n",8,0,(struct sockaddr*) &udpAddr, addrlen);
+        n=write(fd,"ROA NOK\n",8);
         if (n==-1) cout << "Problema no sendto: ROA NOK\n";
         return 0;
     }
 
     if (c._status != "logged in") {
         //ROA NLG if uid is not logged in
-        n=write(newfd,"ROA NLG\n", 8);
+        n=write(fd,"ROA NLG\n", 8);
         if (n==-1) cout << "Problema no sendto: ROA NLG\n";
         return 0;
     }
@@ -588,18 +669,22 @@ int processOpen(vector<string> input) {         // CHECK FNAME AND FSIZE!!!!!!!!
     string aid = addAuction(input);
     //create auction, update database
     if (aid == "!") {      // problema a adicionar Auction
-        n=write(newfd,"ROA NOK\n", 8);   // ROA NOK
+        n=write(fd,"ROA NOK\n", 8);   // ROA NOK
         if (n==-1) cout << "Problema no sendto: ROA NOK\n";
-    } else {
-        string ans = "ROA OK " + aid + "\n";
-        n=write(newfd, ans.c_str(), 11);   // ROA OK
-        if (n==-1) cout << "Problema no sendto: ROA OK\n";
     }
+
+    // save asset file path
+    tcpBuffer *t = getTcpBuffer(fd);
+    t->_path = "AUCTIONS/"+aid+"/ASSET/"+Fname;
+    t->_fsize = stoi(Fsize);
+    t->toCreate = false;
+    t->canWrite = true;
+    t->_aid = aid;
 
     return 0;
 }
 
-int processClose(string uid, string password, string aid) { 
+int processClose(string uid, string password, string aid, int fd) { 
     if (!checkFormat("uid", uid)) {
         cerr << "Poorly formatted request.\n";
         return -1;
@@ -609,13 +694,13 @@ int processClose(string uid, string password, string aid) {
     Client c = getUser(uid);
     if (c._password == "problem") return -1;
     if (c._password != password) {
-        n=sendto(ufd,"RCL NOK\n",8,0,(struct sockaddr*) &udpAddr, addrlen);
+        n=write(fd,"RCL NOK\n",8);
         if (n==-1) cout << "Problema no sendto: RCL NOK\n";
         return 0;
     }
 
     if (c._status != "logged in") {
-        n=write(newfd,"RCL NLG\n", 8);   // RCL NLG
+        n=write(fd,"RCL NLG\n", 8);   // RCL NLG
         if (n==-1) cout << "Problema no sendto: RCL NLG\n";
         return 1;
     }
@@ -623,30 +708,30 @@ int processClose(string uid, string password, string aid) {
     //check if aid exists   (RCL EAU)
     Auction a = getAuction(aid);
     if (a._aid != aid) {        // nao existe auction (aid)
-        n=write(newfd,"RCL EAU\n", 8);   // RCL EAU
+        n=write(fd,"RCL EAU\n", 8);   // RCL EAU
         if (n==-1) cout << "Problema no sendto: RCL EAU\n";
         return 1;
     }
 
     //check if aid was HOSTED by uid (RCL EOW)
     if (to_string(a._uid) != uid) {
-        n=write(newfd,"RCL EOW\n", 8);   // RCL EOW
+        n=write(fd,"RCL EOW\n", 8);   // RCL EOW
         if (n==-1) cout << "Problema no sendto: RCL EOW\n";
         return 1;
     }
 
     if (!endAuction(aid)) {
-        n=write(newfd,"RCL END\n", 8);   // RCL END
+        n=write(fd,"RCL END\n", 8);   // RCL END
         if (n==-1) cout << "Problema no sendto: RCL END\n";
     } else {
         // RCL OK, end auction by adding END_aid.txt to AUCTIONS/aid/
-        n=write(newfd,"RCL OK\n", 7);   // RCL OK
+        n=write(fd,"RCL OK\n", 7);   // RCL OK
         if (n==-1) cout << "Problema no sendto: RCL OK\n";
     }
     return 0;
 }
 
-int processBid(string uid, string password, string aid, string bid) {
+int processBid(string uid, string password, string aid, string bid, int fd) {
     cout << "PASSWORD: " << password << ":\n"; 
     if (!checkFormat("uid", uid) || !checkFormat("aid", aid) || !checkFormat("bid", bid) || !checkFormat("password", password)) {
         cerr << "Poorly formatted request.\n";
@@ -656,7 +741,7 @@ int processBid(string uid, string password, string aid, string bid) {
     Client c = getUser(uid);
     if (c._password == "problem") return -1;
     if (c._password != password) {
-        n=sendto(ufd,"RBD NOK\n",8,0,(struct sockaddr*) &udpAddr, addrlen);
+        n=write(fd,"RBD NOK\n",8);
         if (n==-1) cout << "Problema no sendto: RBD NOK\n";
         return 0;
     }
@@ -665,21 +750,21 @@ int processBid(string uid, string password, string aid, string bid) {
 
     //check if uid is logged in (RBD NLG)
     if (c._status != "logged in") {
-        n=write(newfd,"RBD NLG\n", 8);   // RBD NLG
+        n=write(fd,"RBD NLG\n", 8);   // RBD NLG
         if (n==-1) cout << "Problema no sendto: RBD NLG\n";
         return 1;
     }
 
     //check if aid exists and is active (RBD NOK)
     if (a._state == 0 || a._aid == "!") {
-        n=write(newfd,"RBD NOK\n", 8);   // RBD NOK
+        n=write(fd,"RBD NOK\n", 8);   // RBD NOK
         if (n==-1) cout << "Problema no sendto: RBD NOK\n";
         return 1;
     }
 
     //check if aid belongs to uid (RBD ILG)
     if (a._uid == stoi(uid)) {
-        n=write(newfd,"RBD ILG\n", 8);   // RBD ILG
+        n=write(fd,"RBD ILG\n", 8);   // RBD ILG
         if (n==-1) cout << "Problema no sendto: RBD ILG\n";
         return 1;
     }
@@ -687,17 +772,80 @@ int processBid(string uid, string password, string aid, string bid) {
     cout << "BID vs HIGHVAL: " << bid << " vs " << a._highValue << ":\n";
     //check if bid is higher than previous highest bid (RBD REF)
     if (stoi(bid) <= a._highValue) {
-        n=write(newfd,"RBD REF\n", 8);   // RBD REF
+        n=write(fd,"RBD REF\n", 8);   // RBD REF
         if (n==-1) cout << "Problema no sendto: RBD REF\n";
     } else {    // RBD ACC, aid._highValue = bid;
         addBid(uid, aid, stoi(bid));
-        n=write(newfd,"RBD ACC\n", 8);   // RBD ACC
+        n=write(fd,"RBD ACC\n", 8);   // RBD ACC
         if (n==-1) cout << "Problema no sendto: RBD ACC\n";
     }
     return 1;
 }
 
-//int processShowAsset() {}
+int processShowAsset(string aid, int fd) {
+    tcpBuffer *buf = getTcpBuffer(fd);
+    string fname, answer = "!";
+    ifstream fin;
+    int read1, write1, found, sent = 0;
+    char tmp[8 * 1025];
+    
+    if (!checkFormat("aid", aid)) {
+        cerr << "Poorly formatted request.\n";
+        return -1;
+    }
+
+    //check if aid exists   (RSA NOK)
+    Auction a = getAuction(aid);
+    if (a._aid != aid) {        // nao existe auction (aid)
+        answer = "RSA NOK\n";
+        n=write(fd, answer.c_str(), answer.size());   // RSA NOK
+        if (n==-1) cout << "Problema no sendto: RSA NOK\n";
+        return 1;
+    }
+    
+    buf->_path = "AUCTIONS/"+aid+"/ASSET/"+a._fname;
+    found = buf->_path.find_last_of('/');
+    fname = buf->_path.substr(found+1);
+
+    fin.open(buf->_path, ios::binary);
+    fin.seekg(0, fin.end);
+    buf->_fsize = fin.tellg();
+    fin.seekg(0, fin.beg);
+
+    cout << "fsize: " << buf->_fsize << endl;
+
+    answer = "RSA OK "+fname+" "+to_string(buf->_fsize)+" ";
+    n=write(buf->_fd, answer.c_str(), answer.size());   // RSA OK
+    if (n==-1) cout << "Problema no sendto: RSA OK\n";
+
+    while (sent < buf->_fsize) {
+        memset(tmp, 0, 8 * 1025);
+        fin.read(tmp, 8 * 1024);
+        read1 = fin.gcount();
+
+        if (read1 == 0) {
+            fin.close();
+            close(buf->_fd);
+            cout << "Sai por aqui!\n";
+            break;
+        }
+        write1 = 0;
+        while (read1 > 0) {
+            write1 = write(buf->_fd, tmp, read1);
+            sent += write1;
+            read1 -= write1;
+        }
+    }
+    fin.close();
+    n = write(buf->_fd, "\n", 1);
+    if (n == -1) {
+        close(buf->_fd);
+        cout << "Hmmmmm!\n";
+    }
+    //cout << "All data sent!\n";
+
+    return 1;
+}
 
 int main(int argc, char** argv) {
     cout << "Ola meu servidor!\n";

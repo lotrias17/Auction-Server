@@ -13,6 +13,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>  
+#include <iomanip>
 
 #include "../userSrc/Client.cpp"
 
@@ -35,10 +36,11 @@ void setUdpSocket(char* p);
 void setTcpSocket(char* p);
 void receiveRequest();
 bool checkPORTFormat(char* str);
-int serverResponse(string buffer, string protocol);
+int serverResponse(string buffer, string protocol, int fd);
 bool isAlphaNumeric(string str);
 bool isNumeric(string str);
 bool checkFormat(string format, string str);
+int countSpaces(string str);
 
 int processLogin(string uid, string password);
 int processLogout(string uid, string password);
@@ -48,10 +50,11 @@ int processListMyBids(string uid);
 int processShowRecord(string aid);
 int processList();
 
-int processOpen(vector<string> input);
-int processClose(string uid, string password, string aid);
-int processBid(string uid, string password, string aid, string bid);
-int processShowAsset();
+int processOpen(vector<string> input, int fd);
+int processClose(string uid, string password, string aid, int fd);
+int processBid(string uid, string password, string aid, string bid, int fd);
+int processShowAsset(string aid, int fd);
+
 
 
 
